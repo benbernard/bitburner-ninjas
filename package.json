@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
+    "start": "nf start"
   },
   "repository": {
     "type": "git",
@@ -18,6 +18,8 @@
   },
   "homepage": "https://github.com/benbernard/bitburner-ninjas#readme",
   "dependencies": {
-    "eslint": "^6.4.0"
+    "eslint": "^6.4.0",
+    "foreman": "^3.0.1",
+    "nodemon": "^1.19.2"
   }
 }

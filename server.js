@@ -1,5 +1,10 @@
-const http = require("http");
 const port = 3000;
+
+const fs = require("fs");
+const http = require("http");
+
+const DIR = "netrun";
+const LOADER = `netrun.js`;
 
 const requestHandler = (req, res) => {
   console.log(`Got requst: ${req.url}`);
@@ -11,7 +16,11 @@ const requestHandler = (req, res) => {
     return;
   }
 
-  res.end("Hello Foo Node.js Server!");
+  if (req.url === "/files") {
+    res.end(JSON.stringify(gatherFiles()));
+  } else {
+    res.end(slurpFile(`${DIR}/${LOADER}`));
+  }
 };
 
 const setCORS = (req, res) => {
@@ -31,3 +40,20 @@ server.listen(port, err => {
 
   console.log(`server is listening on ${port}`);
 });
+
+const slurpFile = file => {
+  return fs.readFileSync(file).toString();
+};
+
+const gatherFiles = () => {
+  const files = {};
+  addFile(LOADER, files);
+
+  fs.readdirSync(DIR).forEach(file => addFile(file, files));
+
+  return files;
+};
+
+const addFile = (path, hash) => {
+  hash[path] = slurpFile(`${DIR}/${path}`);
+};
