@@ -23,11 +23,11 @@ export async function main(ns) {
 
   let argCommand = NS.args.shift();
   let command = argCommand;
-  if (!command.match(/\.js$/)) command = `nr_${command}.js`;
+  if (!command.match(/\.js$/)) command = `${command}.js`;
 
   if (!NS.fileExists(command)) {
     NS.tprint(`No command ${argCommand} found at ${command}`);
-    NS.exit(1);
+    await NS.exit(1);
   }
 
   let threads = pullArgWithValue(/--threads?/, NS.args) || 1;
@@ -56,6 +56,7 @@ async function updateFiles() {
     for (let file in contents) {
       let originalContents = await NS.read(file);
       if (originalContents != contents[file]) {
+        NS.tprint(`Updating ${file}`);
         await NS.write(file, contents[file], "w");
         hasChanges = true;
       }
