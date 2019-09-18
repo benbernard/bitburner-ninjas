@@ -5,7 +5,7 @@ const INFO_FILE = "netrun_temp.txt";
 export async function main(ns) {
   NS = ns;
 
-  if (NS.getHostname() != "home") {
+  if (NS.getHostname() !== "home") {
     NS.tprint("Must run from home server");
   }
 
@@ -14,7 +14,7 @@ export async function main(ns) {
   if (hasChange) {
     NS.tprint(`Auto Reloading`);
     await NS.run("netrun.js", 1, RESTART_SENTINEL, ...NS.args);
-    await NS.exit();
+    NS.exit();
   }
 
   while (NS.args[0] === RESTART_SENTINEL) {
@@ -47,23 +47,20 @@ function pullArgWithValue(regex, args) {
 async function updateFiles() {
   NS.rm(INFO_FILE);
 
-  try {
-    await NS.wget("http://localhost:3000/files", INFO_FILE);
+  await NS.wget("http://localhost:3000/files", INFO_FILE);
 
-    let hasChanges = false;
-    let contents = JSON.parse(NS.read(INFO_FILE));
+  let hasChanges = false;
+  let contents = JSON.parse(NS.read(INFO_FILE));
 
-    for (let file in contents) {
-      let originalContents = await NS.read(file);
-      if (originalContents != contents[file]) {
-        NS.tprint(`Updating ${file}`);
-        await NS.write(file, contents[file], "w");
-        hasChanges = true;
-      }
+  for (let file of Object.keys(contents)) {
+    let originalContents = await NS.read(file);
+    if (originalContents !== contents[file]) {
+      NS.tprint(`Updating ${file}`);
+      NS.write(file, contents[file], "w");
+      hasChanges = true;
     }
-
-    return hasChanges;
-  } finally {
-    await NS.rm(INFO_FILE);
   }
+
+  NS.rm(INFO_FILE);
+  return hasChanges;
 }

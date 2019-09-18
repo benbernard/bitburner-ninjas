@@ -1,9 +1,12 @@
-let NS;
+import * as TK from "./tk.js";
 
-import {Script} from "tk.js";
+class TestScript extends TK.Script {
+  async run() {
+    this.tlog(`Weakening...`);
 
-export async function main(ns) {
-  NS = ns;
-  NS.tprint("test hello bar");
-  new Script().run;
+    let server = this.server("comptek");
+    await this.server("comptek").weaken(1);
+  }
 }
+
+export let main = TestScript.runner();
