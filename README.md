@@ -13,7 +13,9 @@ and need to reload from scratch.
 
     alias reload="wget http://localhost:3000 netrun.js"
 
-This will only work if the server is running (normally via `npm start`)
+This will only work if the server is running (normally via `npm start`).
+
+Then just run `reload` from the Terminal
 
 ## Running scripts
 
