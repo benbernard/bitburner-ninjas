@@ -1,5 +1,6 @@
-// This class must not have any ns calls in it, as its directly used by the
-// minimal-* scripts
+// This class must not have any ns calls in it (besides print and tprint), as
+// its directly used by the minimal-* scripts.  Be careful not to add any
+// methods that overlap NS.* names
 export class NSObject {
   constructor(ns) {
     this.ns = ns;

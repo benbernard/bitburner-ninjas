@@ -1,3 +1,6 @@
+// This file should never import tk or other scripts, as it needs to be able to
+// reload from scratch, and also not fail if there is a syntax or other error
+// in the toolkit that doesn't even allow scripts to load
 const RELOAD_SCRIPT = "netrun-reload.js";
 
 let NS;
@@ -60,10 +63,21 @@ async function updateFiles() {
   return hasChanges;
 }
 
+// Check to make sure that BaseScript will not inflate script ram sizes
+async function checkBaseScript() {
+  // Check baseScript is still good
+  let ramUsage = NS.getScriptRam("baseScript.js");
+  if (ramUsage !== 1.6) {
+    NS.tprint(`Bad baseScript ram size, should be 1.6, but found ${ramUsage}`);
+    await NS.exit();
+  }
+}
+
 async function updateSourceFiles() {
   if (NS.getScriptName() === RELOAD_SCRIPT) return; // Don't re-update
 
   let hasChange = await updateFiles();
+  await checkBaseScript();
 
   // This was too flaky, instead run on ygg
   if (hasChange) {
