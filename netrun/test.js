@@ -1,7 +1,7 @@
 import * as TK from "./tk.js";
 
 class TestScript extends TK.Script {
-  async run() {
+  async perform() {
     this.tlog(`Weakening...`);
 
     let server = this.server("comptek");

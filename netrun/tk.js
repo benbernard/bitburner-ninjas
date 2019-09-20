@@ -1,16 +1,4 @@
-export class NSObject {
-  constructor(ns) {
-    this.ns = ns;
-  }
-
-  tlog(msg) {
-    this.ns.tprint(msg);
-  }
-
-  log(msg) {
-    this.ns.print(msg);
-  }
-}
+import {BaseScript, NSObject} from "./baseScript.js";
 
 export let _ = {
   isFunction(val) {
@@ -65,33 +53,9 @@ export class Server extends NSObject {
   }
 }
 
-export class Script extends NSObject {
-  get args() {
-    return this.ns.args;
-  }
-
-  async run() {
-    this.ns.tprint("Subclass must implement2");
-  }
-
-  tlog(msg) {
-    this.ns.tprint(msg);
-  }
-
-  log(msg) {
-    this.ns.print(msg);
-  }
-
+export class Script extends BaseScript {
   server(server) {
     return new Server(this.ns, server);
-  }
-
-  static runner() {
-    let self = this;
-    return async function (ns) {
-      let inst = new self(ns);
-      await inst.run();
-    };
   }
 }
 
@@ -102,3 +66,5 @@ export class ServerScript extends Script {
     this.s = new Server(ns, this.serverName);
   }
 }
+
+export {BaseScript};

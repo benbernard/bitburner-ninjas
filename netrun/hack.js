@@ -1,7 +1,7 @@
 import * as TK from "./tk.js";
 
 class ThisScript extends TK.ServerScript {
-  async run() {
+  async perform() {
     while (true) {
       await this.s.weaken();
       await this.s.grow();
