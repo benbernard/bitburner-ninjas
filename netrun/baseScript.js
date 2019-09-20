@@ -15,9 +15,18 @@ export class NSObject {
   }
 }
 
-export class BaseScript extends NSObject {
+export default class BaseScript extends NSObject {
   get args() {
     return this.ns.args;
+  }
+
+  async exit(msg) {
+    if (msg) this.tlog(msg);
+    await this.ns.exit();
+  }
+
+  pullFirstArg() {
+    return this.ns.args.shift();
   }
 
   async perform() {
@@ -32,6 +41,10 @@ export class BaseScript extends NSObject {
     this.ns.print(msg);
   }
 
+  cFormat(money) {
+    return this.ns.nFormat(money, "$0.0 a");
+  }
+
   static runner() {
     let self = this;
     return async function (ns) {
@@ -40,3 +53,6 @@ export class BaseScript extends NSObject {
     };
   }
 }
+
+// Also export as non-default
+export {BaseScript};

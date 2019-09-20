@@ -2,12 +2,15 @@ import * as TK from "./tk.js";
 
 class ThisScript extends TK.ServerScript {
   async perform() {
-    while (true) {
-      await this.s.weaken();
-      await this.s.grow();
+    const thisServer = this.currentServer();
+    const targetServer = this.serverName;
 
-      await this.s.weaken();
-      await this.s.hack();
+    while (true) {
+      await thisServer.weaken(targetServer);
+      await thisServer.grow(targetServer);
+
+      await thisServer.weaken(targetServer);
+      await thisServer.maxHack(targetServer);
     }
   }
 }
