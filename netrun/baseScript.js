@@ -13,16 +13,20 @@ export class NSObject {
   log(msg) {
     this.ns.print(msg);
   }
-}
 
-export default class BaseScript extends NSObject {
-  get args() {
-    return this.ns.args;
+  cFormat(money) {
+    return this.ns.nFormat(money, "$0.0 a");
   }
 
   async exit(msg) {
     if (msg) this.tlog(msg);
     await this.ns.exit();
+  }
+}
+
+export default class BaseScript extends NSObject {
+  get args() {
+    return this.ns.args;
   }
 
   pullFirstArg() {
@@ -31,18 +35,6 @@ export default class BaseScript extends NSObject {
 
   async perform() {
     this.ns.tprint("Subclass must implement2");
-  }
-
-  tlog(msg) {
-    this.ns.tprint(msg);
-  }
-
-  log(msg) {
-    this.ns.print(msg);
-  }
-
-  cFormat(money) {
-    return this.ns.nFormat(money, "$0.0 a");
   }
 
   static runner() {

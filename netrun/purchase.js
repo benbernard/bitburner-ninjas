@@ -39,10 +39,18 @@ class ThisScript extends TK.Script {
   }
 
   listCosts() {
+    let purchased = this.ns.getPurchasedServers(true);
+    this.tlog(
+      `You have purchased ${
+        purchased.length
+      }/${this.ns.getPurchasedServerLimit()} servers`
+    );
+    this.tlog("");
+
     for (let i = 1; i <= 20; i++) {
       let ram = Math.pow(2, i);
       let cost = this.serverCost(ram);
-      this.tlog(` RAM ${ram} -- ${this.cFormat(cost)}`);
+      this.tlog(`  RAM ${ram} -- ${this.cFormat(cost)}`);
     }
   }
 

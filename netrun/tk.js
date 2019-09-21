@@ -37,6 +37,35 @@ export class Server extends NSObject {
     await this.ns.nuke(this.name);
   }
 
+  async traverse(indent = "", fn, seen = {}) {
+    let children = await this.scan();
+    this.tlog(children.length);
+    children = children.filter(name => !seen[name]);
+    this.tlog(children.length);
+
+    for (let child of children) {
+      let childServer = new Server(this.ns, child);
+      await fn(childServer, indent);
+      seen[child] = 1;
+      await childServer.traverse(`${indent}  `, fn, seen);
+    }
+  }
+
+  info() {
+    let parts = [
+      `${this.name}`,
+      "-",
+      `Money: ${this.cFormat(this.money())} / ${this.cFormat(this.maxMoney())}`,
+      `Hack: ${this.hackingLevel()}`,
+    ];
+
+    return parts.join(" ");
+  }
+
+  scan() {
+    return this.ns.scan(this.name);
+  }
+
   async exec(script, threads, ...args) {
     this.tlog(
       `Running ${script} on ${
