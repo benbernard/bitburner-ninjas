@@ -3,8 +3,12 @@ const port = 3000;
 const fs = require("fs");
 const http = require("http");
 
-const DIR = "netrun";
-const LOADER = `netrun.js`;
+const argName = process.argv[2];
+const dirname = `netrun/${argName}`;
+
+console.log(`Serving out of ${dirname}`);
+
+const LOADER = `../netrun.js`;
 
 const requestHandler = (req, res) => {
   console.log(`Got requst: ${req.url}`);
@@ -19,7 +23,7 @@ const requestHandler = (req, res) => {
   if (req.url === "/files") {
     res.end(JSON.stringify(gatherFiles()));
   } else {
-    res.end(slurpFile(`${DIR}/${LOADER}`));
+    res.end(slurpFile(`${dirname}/${LOADER}`));
   }
 };
 
@@ -49,11 +53,11 @@ const gatherFiles = () => {
   const files = {};
   addFile(LOADER, files);
 
-  fs.readdirSync(DIR).forEach(file => addFile(file, files));
+  fs.readdirSync(dirname).forEach(file => addFile(file, files));
 
   return files;
 };
 
 const addFile = (path, hash) => {
-  hash[path] = slurpFile(`${DIR}/${path}`);
+  hash[path] = slurpFile(`${dirname}/${path}`);
 };

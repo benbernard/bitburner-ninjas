@@ -39,9 +39,7 @@ export class Server extends NSObject {
 
   async traverse(indent = "", fn, seen = {}) {
     let children = await this.scan();
-    this.tlog(children.length);
     children = children.filter(name => !seen[name]);
-    this.tlog(children.length);
 
     for (let child of children) {
       let childServer = new Server(this.ns, child);
