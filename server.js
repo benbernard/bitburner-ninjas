@@ -10,6 +10,16 @@ console.log(`Serving out of ${dirname}`);
 
 const LOADER = `../netrun.js`;
 
+if (!fs.existsSync(dirname)) {
+  console.error(`
+ERROR: ${dirname} does not exist.
+
+Either invoke with \`USER=bernard npm start\` (or some other user) or create the directory
+
+See Setup section of README for more details`);
+  throw new Error("Cannot start");
+}
+
 const requestHandler = (req, res) => {
   console.log(`Got requst: ${req.url}`);
   setCORS(req, res);

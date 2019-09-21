@@ -1,9 +1,24 @@
 # bitburner-ninjas
 
-Run `npm install` to get eslint installed
+## Setup
 
-Run `npm start` to start server on port 3000
+Run `npm install` to install dependencies
 
+THen you will want to create a directory inside netrun to put your scripts.
+
+    cd netrun
+    mkdir $USER
+
+Run `npm start` to start server on port 3000.
+
+## Using another set of scripts
+
+If you want to use my scripts or someone else's in this repo, just run npm like so:
+
+    USER=bernard npm start
+
+You can also put the `USER=bernard` into the `.env` file at the root of the
+directory.  (then just run with `npm start`)
 
 ## Installing in Bitburner
 
