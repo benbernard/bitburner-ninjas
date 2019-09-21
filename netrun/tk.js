@@ -16,8 +16,16 @@ export class Server extends NSObject {
     this.name = name;
   }
 
+  hackingLevel() {
+    return this.ns.getServerRequiredHackingLevel(this.name);
+  }
+
   money() {
     return this.ns.getServerMoneyAvailable(this.name);
+  }
+
+  maxMoney() {
+    return this.ns.getServerMaxMoney(this.name);
   }
 
   async nuke() {
@@ -39,22 +47,48 @@ export class Server extends NSObject {
   }
 
   async grow(server, {stock} = {stock: false}) {
-    const targetMoney = () => this.ns.getServerMaxMoney(this.name) * 0.9;
+    const targetServer = new Server(this.ns, server);
+    const targetMoney = () => targetServer.maxMoney() * 0.9;
 
-    while (this.money() < targetMoney()) {
+    while (targetServer.money() < targetMoney()) {
       this.ns.print("Growing");
       await this.weaken(server);
       await this.maxGrow(server, stock);
     }
   }
 
-  async weaken(server, targetFnOrValue) {
-    let currentSecurity = () => this.ns.getServerSecurityLevel(this.name);
+  tail(script, ...args) {
+    return this.ns.tail(script, this.name, ...args);
+  }
+
+  ps() {
+    return this.ns.ps(this.name);
+  }
+
+  killall() {
+    return this.ns.killall(this.name);
+  }
+
+  minSecurity() {
+    return this.ns.getServerMinSecurityLevel(this.name);
+  }
+
+  baseSecurity() {
+    return this.ns.getServerBaseSecurityLevel(this.name);
+  }
+
+  security() {
+    return this.ns.getServerSecurityLevel(this.name);
+  }
+
+  async weaken(serverName, targetFnOrValue) {
+    const targetServer = new Server(this.ns, serverName);
+    let currentSecurity = () => targetServer.security();
 
     let targetSecurity = () => {
-      let base = this.ns.getServerMinSecurityLevel(this.name);
-      let diff = this.ns.getServerBaseSecurityLevel(this.name) - base;
-      return base + diff * 0.2;
+      let min = targetServer.minSecurity();
+      let diff = targetServer.baseSecurity() - min;
+      return min + diff * 0.2;
     };
 
     if (targetFnOrValue) {
@@ -66,7 +100,7 @@ export class Server extends NSObject {
     }
 
     while (currentSecurity() > targetSecurity()) {
-      await this.maxWeaken(server);
+      await this.maxWeaken(serverName);
     }
   }
 
@@ -87,25 +121,32 @@ export class Server extends NSObject {
   }
 
   async setupScript(script) {
-    const files = [script, "tk.js", "baseScript.js"];
+    let files = this.ns.ls("home");
+    files = files.filter(file => file.endsWith(".js"));
+
+    // Remove files before scp to suppress warnings
+    for (let file of files) {
+      await this.ns.rm(file, this.name);
+    }
+
     await this.ns.scp(files, "home", this.name);
   }
 
   async maxRun(command, ...args) {
     const script = scriptForCommand(command);
-    await this.setupScript(script);
     await this.ns.scriptKill(script, this.name);
 
     let threads = this.computeMaxThreads(script);
 
     this.log(`Running ${script} with ${threads}`);
-    await this.ns.exec(script, this.name, threads, ...args);
+    await this.ns.run(script, threads, ...args);
 
     this.log(`Waiting for ${script} to complete...`);
     this.ns.disableLog("sleep");
+
     while (true) {
       if (!this.ns.scriptRunning(script, this.name)) return;
-      await this.ns.sleep(100);
+      await this.ns.sleep(500);
     }
   }
 

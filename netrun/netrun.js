@@ -28,7 +28,7 @@ export async function main(ns) {
 }
 
 function pullArgWithValue(regex, args) {
-  let elem = args.find(el => el.match(regex));
+  let elem = args.find(el => el.match && el.match(regex));
   if (!elem) return null;
 
   let index = args.indexOf(elem);

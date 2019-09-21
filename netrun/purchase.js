@@ -2,13 +2,40 @@ import * as TK from "./tk.js";
 
 class ThisScript extends TK.Script {
   async perform() {
-    let ram = this.args.shift();
-    let name = this.args.shift();
-    if (!ram) {
+    let [ram, name] = this.args;
+    if (!name) {
+      name = ram;
+      ram = null;
+    } else if (typeof name === "number") {
+      [name, ram] = this.args;
+    }
+
+    if (!ram && !name) {
       this.listCosts();
+    } else if (this.ns.serverExists(name)) {
+      await this.deleteServer(name);
     } else {
       await this.purchse(ram, name);
     }
+  }
+
+  async deleteServer(name) {
+    let [totalRam] = this.ns.getServerRam(name);
+    let cost = this.cFormat(this.serverCost(totalRam));
+
+    this.tlog(`Delete request for ${name}`);
+
+    const processes = this.ns.ps(name);
+
+    const approved = await this.ns.prompt(
+      `DELETE SERVER REQUEST!  Delete ${name} costing ${cost}?  Currently running ${processes.length} processes.`
+    );
+
+    if (!approved) return this.exit(`Canceling`);
+
+    await this.ns.killall(name);
+    await this.ns.deleteServer(name);
+    this.exit(`Deleted server ${name}`);
   }
 
   listCosts() {
