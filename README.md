@@ -1,5 +1,10 @@
 # bitburner-ninjas
 
+This repo allow local editing of bitburner files, which was my main reason for writing it.
+
+It also servers as a repository of my personal scripts for the game, but it is
+setup so that you don't use those by default.
+
 ## Setup
 
 Run `npm install` to install dependencies
@@ -58,3 +63,10 @@ If you want you can use my `baseScript.js` class, just copy it into your
 of my personal logic and strategy, so you may not want it (in my mind that goes
 from getting a toolchain to use local tools for writing scripts to just playing
 the game with someone else's tools, but you make up your own mind!)
+
+## Importing scripts from the game
+
+This isn't possible right now.  Maybe something could get rigged up between the
+server and using GET params in wget inside bitburner, but I just manually
+copied all the scripts out of the game and now only edit them in my local
+editor.  I welcome pull requests!
