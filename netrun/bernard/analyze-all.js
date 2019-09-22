@@ -1,12 +1,10 @@
 import * as TK from "./tk.js";
+import {purchasedSet} from "./purchased.js";
 
 class ThisScript extends TK.Script {
   async perform() {
     this.s = this.currentServer();
-
-    let seen = {};
-    let purchased = this.ns.getPurchasedServers();
-    purchased.forEach(name => (seen[name] = 1));
+    let seen = purchasedSet(this.ns);
 
     let mode = this.pullFirstArg() || "tree";
 
@@ -21,7 +19,7 @@ class ThisScript extends TK.Script {
 
   async sortedInfo(seen) {
     let servers = [];
-    await this.s.traverse("", server => servers.push(server), seen);
+    await this.s.traverse(server => servers.push(server), seen);
 
     servers = servers.sort((a, b) => {
       let compVal = 0;
@@ -45,7 +43,7 @@ class ThisScript extends TK.Script {
       this.tlog(`${indent}${server.info()}`);
     };
 
-    await this.s.traverse("", printer, seen);
+    await this.s.traverse(printer, seen);
   }
 }
 

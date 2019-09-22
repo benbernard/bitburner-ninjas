@@ -28,6 +28,16 @@ export class Server extends NSObject {
     return this.ns.getServerMaxMoney(this.name);
   }
 
+  hasRoot() {
+    return this.ns.hasRootAccess(this.name);
+  }
+
+  async reachableServers(seen = {}) {
+    let servers = [];
+    await this.traverse(server => servers.push(server), seen);
+    return servers;
+  }
+
   async nuke() {
     await this.ns.httpworm(this.name);
     await this.ns.brutessh(this.name);
@@ -37,7 +47,7 @@ export class Server extends NSObject {
     await this.ns.nuke(this.name);
   }
 
-  async traverse(indent = "", fn, seen = {}) {
+  async traverse(fn, seen = {}, indent = "") {
     let children = await this.scan();
     children = children.filter(name => !seen[name]);
 
@@ -45,7 +55,7 @@ export class Server extends NSObject {
       let childServer = new Server(this.ns, child);
       await fn(childServer, indent);
       seen[child] = 1;
-      await childServer.traverse(`${indent}  `, fn, seen);
+      await childServer.traverse(fn, seen, `${indent}  `);
     }
   }
 
@@ -55,6 +65,7 @@ export class Server extends NSObject {
       "-",
       `Money: ${this.cFormat(this.money())} / ${this.cFormat(this.maxMoney())}`,
       `Hack: ${this.hackingLevel()}`,
+      `Root: ${this.hasRoot() ? "YES" : "NO"}`,
     ];
 
     return parts.join(" ");
@@ -145,6 +156,10 @@ export class Server extends NSObject {
 
   async maxWeaken(...args) {
     await this.maxRun("minimal-weaken", ...args);
+  }
+
+  ls() {
+    return this.ns.ls(this.name);
   }
 
   async setupScript(script) {

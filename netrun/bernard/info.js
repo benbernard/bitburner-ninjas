@@ -2,7 +2,12 @@ import * as TK from "./tk.js";
 
 class ThisScript extends TK.ServerScript {
   async perform() {
-    this.tlog(`  Server: ${this.serverName} Hack: ${this.s.hackingLevel()}`);
+    let root = this.s.hasRoot() ? "YES" : "NO";
+    this.tlog(
+      `  Server: ${
+        this.serverName
+      } Hack: ${this.s.hackingLevel()} Root: ${root}`
+    );
 
     let minSec = this.s.minSecurity();
     let baseSec = this.s.baseSecurity();

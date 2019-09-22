@@ -63,11 +63,19 @@ const gatherFiles = () => {
   const files = {};
   addFile(LOADER, files);
 
-  fs.readdirSync(dirname).forEach(file => addFile(file, files));
+  fs.readdirSync(dirname)
+    .filter(file => !fs.lstatSync(`${dirname}/${file}`).isDirectory())
+    .forEach(file => {
+      addFile(file, files);
+    });
 
   return files;
 };
 
 const addFile = (path, hash) => {
-  hash[path] = slurpFile(`${dirname}/${path}`);
+  if (path === LOADER) {
+    hash["netrun.js"] = slurpFile(`${dirname}/${path}`);
+  } else {
+    hash[path] = slurpFile(`${dirname}/${path}`);
+  }
 };
