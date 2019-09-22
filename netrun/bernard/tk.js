@@ -11,9 +11,10 @@ export let _ = {
 };
 
 export class Server extends NSObject {
-  constructor(ns, name) {
+  constructor(ns, name, parent) {
     super(ns);
     this.name = name;
+    this.parent = parent;
   }
 
   hackingLevel() {
@@ -48,18 +49,19 @@ export class Server extends NSObject {
   }
 
   async traverse(fn, seen = {}, indent = "") {
+    seen[this.name] = 1;
     let children = await this.scan();
     children = children.filter(name => !seen[name]);
 
     for (let child of children) {
-      let childServer = new Server(this.ns, child);
+      let childServer = new Server(this.ns, child, this);
       await fn(childServer, indent);
       seen[child] = 1;
       await childServer.traverse(fn, seen, `${indent}  `);
     }
   }
 
-  info() {
+  info(includePath = false) {
     let parts = [
       `${this.name}`,
       "-",
@@ -68,7 +70,13 @@ export class Server extends NSObject {
       `Root: ${this.hasRoot() ? "YES" : "NO"}`,
     ];
 
+    if (includePath) parts.push(`Path: ${this.path()}`);
     return parts.join(" ");
+  }
+
+  path() {
+    if (!this.parent) return this.name;
+    return `${this.parent.path()} -> ${this.name}`;
   }
 
   scan() {

@@ -10,7 +10,11 @@ class ThisScript extends TK.Script {
     for (let server of servers) {
       let files = server.ls().filter(name => name.endsWith(".cct"));
       if (files.length) {
-        this.tlog(`Found Contracts on ${server.name}: ${files.join(" ")}`);
+        this.tlog(
+          `Found Contracts on ${server.name}: ${files.join(
+            " "
+          )} Path: ${server.path()}`
+        );
       }
     }
   }
