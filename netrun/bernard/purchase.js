@@ -14,8 +14,20 @@ class ThisScript extends TK.Script {
       this.listCosts();
     } else if (this.ns.serverExists(name)) {
       await this.deleteServer(name);
+    } else if (name === "info" || ram === "info") {
+      await this.purchasedServersInfo();
     } else {
       await this.purchse(ram, name);
+    }
+  }
+
+  async purchasedServersInfo() {
+    let purchased = this.ns.getPurchasedServers(true);
+
+    this.tlog(`Purchased Servers:`);
+    for (let name of purchased) {
+      let [ram] = this.ns.getServerRam(name);
+      this.tlog(`  ${name} - ${this.rFormat(ram)} - ${ram}`);
     }
   }
 

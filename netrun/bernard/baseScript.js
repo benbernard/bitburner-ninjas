@@ -18,6 +18,10 @@ export class NSObject {
     return this.ns.nFormat(money, "$0.0 a");
   }
 
+  rFormat(ram) {
+    return this.ns.nFormat(ram * (1024 * 1024 * 1024), "0b");
+  }
+
   async exit(msg) {
     if (msg) this.tlog(msg);
     await this.ns.exit();
