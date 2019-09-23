@@ -1,6 +1,6 @@
 import * as TK from "./tk.js";
-import {purchasedSet} from "./purchased.js";
 import Contract from "./contracts.js";
+import {purchasedSet} from "./purchased.js";
 
 class ThisScript extends TK.Script {
   async perform() {
@@ -20,6 +20,9 @@ class ThisScript extends TK.Script {
         this.tlog(`Description: ${contract.description}`);
         this.tlog(`Data: ${JSON.stringify(contract.data)}`);
 
+        // Allow text to print
+        await this.ns.sleep(200);
+
         if (contract.hasSolver()) {
           let success = await contract.solve(submit);
           if (!success) {
@@ -30,6 +33,8 @@ class ThisScript extends TK.Script {
         }
       }
     }
+
+    this.tlog(`Solved all contracts!`);
   }
 }
 

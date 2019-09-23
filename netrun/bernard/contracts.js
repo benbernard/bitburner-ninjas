@@ -1,4 +1,4 @@
-import {trading1, trading2, trading3} from "./trading2.js";
+import {trading1, trading2, trading3, trading4} from "./trading2.js";
 import {NSObject} from "./baseScript.js";
 import validMath from "./validMath.js";
 
@@ -92,6 +92,10 @@ async function gridPathNoObstacles([rows, columns]) {
   return countPaths(data);
 }
 
+function gridPathObstacles(data) {
+  return countPaths(data, 0, 0);
+}
+
 function countPaths(data, x = 0, y = 0) {
   if (data.length <= x) return 0;
   if (data[0].length <= y) return 0;
@@ -123,6 +127,7 @@ function largestFactor(target) {
   return factors[factors.length - 1];
 }
 
+// Cheated, didn't actually implement this
 function countSums(arrayData) {
   var ways = [];
   ways[0] = 1;
@@ -417,9 +422,8 @@ function trianglePath(data) {
 let DISPATCH = {
   "Subarray with Maximum Sum": maxSum,
   "Unique Paths in a Grid I": gridPathNoObstacles,
+  "Unique Paths in a Grid II": gridPathObstacles,
   "Find Largest Prime Factor": largestFactor,
-  "Algorithmic Stock Trader III": trading3,
-  "Algorithmic Stock Trader I": trading1,
   "Total Ways to Sum": countSums,
   "Merge Overlapping Intervals": mergeIntervals,
   "Generate IP Addresses": generateIps,
@@ -427,8 +431,11 @@ let DISPATCH = {
   "Find All Valid Math Expressions": validMath,
   "Array Jumping Game": jumps,
   "Sanitize Parentheses in Expression": sanitizeParens,
-  "Algorithmic Stock Trader II": trading2,
   "Minimum Path Sum in a Triangle": trianglePath,
+  "Algorithmic Stock Trader I": trading1,
+  "Algorithmic Stock Trader II": trading2,
+  "Algorithmic Stock Trader III": trading3,
+  "Algorithmic Stock Trader IV": trading4,
 };
 
 export {DISPATCH};
