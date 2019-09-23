@@ -1,4 +1,4 @@
-import {trading1, trading3} from "./trading2.js";
+import {trading1, trading2, trading3} from "./trading2.js";
 import {NSObject} from "./baseScript.js";
 import validMath from "./validMath.js";
 
@@ -38,15 +38,20 @@ export default class Contract extends NSObject {
     return false;
   }
 
+  hasSolver() {
+    return !!DISPATCH[this.type];
+  }
+
   async solve(submit) {
     let solver = DISPATCH[this.type];
     if (!solver) {
       this.tlog(`No solver for ${this.type}`);
-      return;
+      return false;
     }
 
     let solution = await solver(this.data, this.ns);
     this.tlog(`Solution: ${JSON.stringify(solution)}`);
+    if (!submit) return true;
 
     if (submit) {
       let success = this.attempt(solution);
@@ -55,6 +60,8 @@ export default class Contract extends NSObject {
       } else {
         this.tlog("FAILED! Tries left: ${this.triesLeft}");
       }
+
+      return success;
     }
   }
 }
@@ -295,6 +302,118 @@ function jumps(arr) {
   return 0;
 }
 
+class ParenData {
+  constructor(str, count, edits) {
+    this.str = str;
+    this.count = count;
+    this.edits = edits;
+  }
+
+  makeChildren(char) {
+    let children = [];
+    if (char === "(") {
+      children.push(new ParenData(this.str + char, this.count + 1, this.edits));
+      children.push(new ParenData(this.str, this.count, this.edits + 1));
+    } else if (char === ")") {
+      if (this.count > 0) {
+        children.push(
+          new ParenData(this.str + char, this.count - 1, this.edits)
+        );
+      }
+      children.push(new ParenData(this.str, this.count, this.edits + 1));
+    } else {
+      children.push(new ParenData(this.str + char, this.count, this.edits));
+    }
+
+    return children;
+  }
+}
+
+function sanitizeParens(data) {
+  let openCount = 0;
+
+  let position = 0;
+  let candidates = [new ParenData("", 0, 0)];
+
+  for (let char of data) {
+    let newCandidates = [];
+    for (let pd of candidates) {
+      newCandidates.push(...pd.makeChildren(char));
+    }
+
+    candidates = newCandidates;
+  }
+
+  let sortedValid = candidates
+    .filter(pd => pd.count === 0)
+    .sort((a, b) => a.edits - b.edits);
+
+  if (sortedValid.length === 0) return [""];
+
+  let minEdits = sortedValid[0].edits;
+  return [
+    ...new Set(
+      sortedValid.filter(pd => pd.edits === minEdits).map(pd => pd.str)
+    ),
+  ];
+}
+
+class TrianglePoint {
+  constructor(level, index, sum, data) {
+    this.level = level;
+    this.index = index;
+    this.data = data;
+    this.sum = sum + this.value();
+  }
+
+  value() {
+    return this.data[this.level][this.index];
+  }
+
+  atEnd() {
+    return this.level >= this.data.length - 1;
+  }
+
+  newPositions() {
+    if (this.atEnd()) return [];
+    let newLevel = this.level + 1;
+    return [
+      new TrianglePoint(newLevel, this.index, this.sum, this.data),
+      new TrianglePoint(newLevel, this.index + 1, this.sum, this.data),
+    ];
+  }
+
+  info() {
+    return `[${this.level}, ${this.index}] = ${this.sum}`;
+  }
+}
+
+function trianglePath(data) {
+  let positions = [new TrianglePoint(0, 0, 0, data)];
+  let results = [];
+
+  let count = 0;
+  while (positions.length > 0) {
+    let position = positions.shift();
+    let [a, b] = position.newPositions();
+
+    if (a.atEnd()) {
+      results.push(a);
+      results.push(b);
+    } else {
+      positions.push(a);
+      positions.push(b);
+    }
+    count++;
+  }
+
+  results = results.sort((a, b) => {
+    return a.sum - b.sum;
+  });
+
+  return results[0].sum;
+}
+
 let DISPATCH = {
   "Subarray with Maximum Sum": maxSum,
   "Unique Paths in a Grid I": gridPathNoObstacles,
@@ -307,6 +426,9 @@ let DISPATCH = {
   "Spiralize Matrix": spiralize,
   "Find All Valid Math Expressions": validMath,
   "Array Jumping Game": jumps,
+  "Sanitize Parentheses in Expression": sanitizeParens,
+  "Algorithmic Stock Trader II": trading2,
+  "Minimum Path Sum in a Triangle": trianglePath,
 };
 
 export {DISPATCH};

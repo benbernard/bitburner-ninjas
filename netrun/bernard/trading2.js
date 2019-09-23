@@ -59,3 +59,16 @@ export function trading3(data) {
   let possibleTradePlans = [...trades.map(trade => [trade]), ...validPairs];
   return maxProfitOfTradeSets(possibleTradePlans);
 }
+
+export function trading2(data) {
+  let prevPrice = data[0];
+  let profit = 0;
+  for (let price of data.slice(1)) {
+    if (price > prevPrice) {
+      profit += price - prevPrice;
+    }
+
+    prevPrice = price;
+  }
+  return profit;
+}

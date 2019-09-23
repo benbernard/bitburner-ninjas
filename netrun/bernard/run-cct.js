@@ -19,8 +19,15 @@ class ThisScript extends TK.Script {
         this.tlog(`Type: "${contract.type}"`);
         this.tlog(`Description: ${contract.description}`);
         this.tlog(`Data: ${JSON.stringify(contract.data)}`);
-        await contract.solve(submit);
-        this.exit();
+
+        if (contract.hasSolver()) {
+          let success = await contract.solve(submit);
+          if (!success) {
+            await this.exit(`Stopping!`);
+          }
+        } else {
+          this.tlog(`No solver for ${contract.type}`);
+        }
       }
     }
   }
