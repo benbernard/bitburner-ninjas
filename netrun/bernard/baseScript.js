@@ -4,6 +4,14 @@
 export class NSObject {
   constructor(ns) {
     this.ns = ns;
+    this.disabledLogs = {};
+  }
+
+  disableLogging(...names) {
+    for (let name of names) {
+      if (name in this.disabledLogs) continue;
+      this.ns.disableLog(name);
+    }
   }
 
   tlog(...msgs) {

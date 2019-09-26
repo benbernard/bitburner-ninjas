@@ -31,7 +31,7 @@ export class Server extends NSObject {
 
     if (this.useHalfRam) {
       let halfMaxTotal = total / 2;
-      return [total, Math.max(used + halfMaxTotal, total)];
+      return [total, Math.min(used + halfMaxTotal, total)];
     } else {
       return [total, used];
     }
@@ -204,6 +204,10 @@ export class Server extends NSObject {
     return this.ns.killall(this.name);
   }
 
+  kill(script, ...args) {
+    return this.ns.kill(script, this.name, ...args);
+  }
+
   minSecurity() {
     return this.ns.getServerMinSecurityLevel(this.name);
   }
@@ -313,9 +317,7 @@ export class Server extends NSObject {
   computeMaxThreads(command) {
     const script = scriptForCommand(command);
 
-    let [total, used] = this.ramInfo();
-    let available = total - used;
-
+    let available = this.availableRam();
     let commandRam = this.ns.getScriptRam(script);
 
     return Math.floor(available / commandRam);
@@ -323,18 +325,6 @@ export class Server extends NSObject {
 }
 
 export class Script extends BaseScript {
-  constructor(...args) {
-    super(...args);
-    this.disabledLogs = {};
-  }
-
-  disableLogging(...names) {
-    for (let name of names) {
-      if (name in this.disabledLogs) continue;
-      this.ns.disableLog(name);
-    }
-  }
-
   server(server) {
     return new Server(this.ns, server);
   }
