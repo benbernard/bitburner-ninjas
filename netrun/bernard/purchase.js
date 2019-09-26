@@ -17,7 +17,7 @@ class ThisScript extends TK.Script {
     } else if (name === "info" || ram === "info") {
       await this.purchasedServersInfo();
     } else {
-      await this.purchse(ram, name);
+      await this.purchase(ram, name, this.args[2]);
     }
   }
 
@@ -70,16 +70,22 @@ class ThisScript extends TK.Script {
     return this.ns.getPurchasedServerCost(ram);
   }
 
-  async purchse(ram, name) {
+  async purchase(ram, name, noConfirm = false) {
     let cost = this.cFormat(this.serverCost(ram));
 
     if (!ram || !name) {
       await this.exit(`Must specify ram and name!`);
     }
 
-    let buy = await this.ns.prompt(
-      `Purchase ${name} server with ${ram} ram for ${cost}`
-    );
+    let buy = false;
+    if (noConfirm) {
+      buy = true;
+    } else {
+      buy = await this.ns.prompt(
+        `Purchase ${name} server with ${ram} ram for ${cost}`
+      );
+    }
+
     if (buy) {
       this.tlog(`Buying ${name}`);
       let success = await this.ns.purchaseServer(name, ram);

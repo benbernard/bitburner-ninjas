@@ -3,6 +3,8 @@
 // in the toolkit that doesn't even allow scripts to load
 const RELOAD_SCRIPT = "netrun-reload.js";
 
+let LIBRARY_FILES = ["baseScript.js", "tk.js", "contracts.js", "purchased.js"];
+
 let NS;
 export async function main(ns) {
   NS = ns;
@@ -11,20 +13,40 @@ export async function main(ns) {
     NS.tprint("Must run from home server");
   }
 
-  await updateSourceFiles();
-
   let argCommand = NS.args.shift();
   let command = argCommand;
+
+  if (command === "forceReload") {
+    await forceReload();
+    await updateSourceFiles();
+    return await NS.exit();
+  }
+
+  await updateSourceFiles();
+
   if (!command.match(/\.js$/)) command = `${command}.js`;
 
   if (!NS.fileExists(command)) {
     NS.tprint(`No command ${argCommand} found at ${command}`);
-    await NS.exit(1);
+    return await NS.exit(1);
   }
 
   let threads = pullArgWithValue(/--threads?/, NS.args) || 1;
 
   await NS.run(command, threads, ...NS.args);
+}
+
+// Force all files except this one to re-load from server
+async function forceReload() {
+  let files = NS.ls("home");
+  files = files
+    .filter(file => file.endsWith(".js"))
+    .filter(file => file !== "netrun.js");
+
+  // Remove files before scp to suppress warnings
+  for (let file of files) {
+    await NS.rm(file, "home");
+  }
 }
 
 function pullArgWithValue(regex, args) {
@@ -36,6 +58,21 @@ function pullArgWithValue(regex, args) {
   return parseInt(info[1]);
 }
 
+async function updateFile(file, contents) {
+  let originalContents = await NS.read(file);
+
+  if (originalContents !== contents) {
+    NS.tprint(`Updating ${file}`);
+
+    NS.rm(file); // Clear the script so that the module also gets cleared.
+    NS.write(file, contents, "w");
+
+    return true;
+  }
+
+  return false;
+}
+
 async function updateFiles() {
   const INFO_FILE = "netrun_temp.txt";
 
@@ -45,19 +82,16 @@ async function updateFiles() {
   let hasChanges = false;
   let contents = JSON.parse(NS.read(INFO_FILE));
 
-  for (let file of Object.keys(contents)) {
-    let originalContents = await NS.read(file);
-    if (originalContents !== contents[file]) {
-      NS.tprint(`Updating ${file}`);
-      NS.write(file, contents[file], "w");
-      hasChanges = true;
-
-      // Also update the reload script
-      if (file === "netrun.js") {
-        NS.write(RELOAD_SCRIPT, contents[file], "w");
-      }
-    }
+  for (let file of LIBRARY_FILES) {
+    await updateFile(file, contents[file]);
   }
+
+  for (let file of Object.keys(contents)) {
+    await updateFile(file, contents[file]);
+  }
+
+  // Make sure the reload script gets updated as well
+  await updateFile(RELOAD_SCRIPT, contents["netrun.js"]);
 
   await NS.rm(INFO_FILE);
   return hasChanges;

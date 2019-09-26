@@ -13,12 +13,12 @@ class ThisScript extends TK.Script {
       let files = server.ls().filter(name => name.endsWith(".cct"));
       if (files.length > 0) {
         let contract = new Contract(files[0], server);
-        this.tlog(
+        this.log(
           `Found contract: ${contract.file} on ${server.name}, Tries: ${contract.triesLeft}`
         );
-        this.tlog(`Type: "${contract.type}"`);
-        this.tlog(`Description: ${contract.description}`);
-        this.tlog(`Data: ${JSON.stringify(contract.data)}`);
+        this.log(`Type: "${contract.type}"`);
+        this.log(`Description: ${contract.description}`);
+        this.log(`Data: ${JSON.stringify(contract.data)}`);
 
         // Allow text to print
         await this.ns.sleep(200);
@@ -29,12 +29,12 @@ class ThisScript extends TK.Script {
             await this.exit(`Stopping!`);
           }
         } else {
-          this.tlog(`No solver for ${contract.type}`);
+          this.log(`No solver for ${contract.type}`);
         }
       }
     }
 
-    this.tlog(`Solved all contracts!`);
+    this.log(`Solved all contracts!`);
   }
 }
 

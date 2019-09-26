@@ -6,12 +6,16 @@ export class NSObject {
     this.ns = ns;
   }
 
-  tlog(msg) {
-    this.ns.tprint(msg);
+  tlog(...msgs) {
+    this.ns.tprint(msgs.join(" "));
   }
 
-  log(msg) {
-    this.ns.print(msg);
+  log(...msgs) {
+    this.ns.print(`${Date.now()}: ${msgs.join(" ")}`);
+  }
+
+  sleep(ms) {
+    return this.ns.sleep(ms);
   }
 
   cFormat(money) {

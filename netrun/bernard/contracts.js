@@ -45,20 +45,20 @@ export default class Contract extends NSObject {
   async solve(submit) {
     let solver = DISPATCH[this.type];
     if (!solver) {
-      this.tlog(`No solver for ${this.type}`);
+      this.log(`No solver for ${this.type}`);
       return false;
     }
 
     let solution = await solver(this.data, this.ns);
-    this.tlog(`Solution: ${JSON.stringify(solution)}`);
+    this.log(`Solution: ${JSON.stringify(solution)}`);
     if (!submit) return true;
 
     if (submit) {
       let success = this.attempt(solution);
       if (success) {
-        this.tlog(`SUCCSSFULLY SOLVED! Reward: ${success}`);
+        this.log(`SUCCSSFULLY SOLVED! Reward: ${success}`);
       } else {
-        this.tlog("FAILED! Tries left: ${this.triesLeft}");
+        this.log("FAILED! Tries left: ${this.triesLeft}");
       }
 
       return success;
@@ -397,10 +397,18 @@ function trianglePath(data) {
   let positions = [new TrianglePoint(0, 0, 0, data)];
   let results = [];
 
+  if (data.length === 1) {
+    return data[0][0];
+  }
+
   let count = 0;
   while (positions.length > 0) {
     let position = positions.shift();
     let [a, b] = position.newPositions();
+
+    if (a == null || b == null) {
+      continue;
+    }
 
     if (a.atEnd()) {
       results.push(a);

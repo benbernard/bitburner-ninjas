@@ -15,10 +15,31 @@ export class Server extends NSObject {
     super(ns);
     this.name = name;
     this.parent = parent;
+    this.useHalfRam = false;
   }
 
   hackingLevel() {
     return this.ns.getServerRequiredHackingLevel(this.name);
+  }
+
+  ram() {
+    return this.ramInfo()[0];
+  }
+
+  ramInfo() {
+    let [total, used] = this.ns.getServerRam(this.name);
+
+    if (this.useHalfRam) {
+      let halfMaxTotal = total / 2;
+      return [total, Math.max(used + halfMaxTotal, total)];
+    } else {
+      return [total, used];
+    }
+  }
+
+  availableRam() {
+    let [total, used] = this.ramInfo();
+    return total - used;
   }
 
   money() {
@@ -29,22 +50,88 @@ export class Server extends NSObject {
     return this.ns.getServerMaxMoney(this.name);
   }
 
+  securityCost(threads, op) {
+    if (op === "hack") {
+      return threads * 0.002;
+    } else if (op === "grow") {
+      return threads * 0.004;
+    } else {
+      throw new Error(`Unrecognized security cost op: ${op}`);
+    }
+  }
+
+  threadsForMinWeaken() {
+    let min = this.minSecurity();
+    let current = this.security();
+
+    let target = current - min;
+    return Math.ceil(target / 0.05);
+  }
+
+  threadsForHack(amount) {
+    return Math.ceil(this.ns.hackAnalyzeThreads(this.name, amount));
+  }
+
+  threadsForMaxGrowth() {
+    let money = this.money();
+    let maxMoney = this.maxMoney();
+
+    let multiplier = maxMoney / money;
+    return Math.ceil(this.threadsForGrowth(multiplier));
+  }
+
+  threadsForGrowth(multiplier) {
+    return this.ns.growthAnalyze(this.name, multiplier);
+  }
+
   hasRoot() {
     return this.ns.hasRootAccess(this.name);
   }
 
-  async reachableServers(seen = {}) {
+  async reachableServers(seen = {}, includeSelf = false) {
     let servers = [];
+
+    if (includeSelf) servers.push(this);
+
     await this.traverse(server => servers.push(server), seen);
     return servers;
   }
 
+  fileExists(file) {
+    return this.ns.fileExists(file, this.name);
+  }
+
+  homeFileExists(file) {
+    return this.ns.fileExists(file, "home");
+  }
+
+  countAvailableCrackers() {
+    let count = 0;
+    if (this.homeFileExists("BruteSSH.exe")) count++;
+    if (this.homeFileExists("FTPCrack.exe")) count++;
+    if (this.homeFileExists("SQLInject.exe")) count++;
+    if (this.homeFileExists("relaySMTP.exe")) count++;
+    if (this.homeFileExists("HTTPWorm.exe")) count++;
+
+    return count;
+  }
+
+  canNuke() {
+    return (
+      this.ns.getServerNumPortsRequired(this.name) <=
+      this.countAvailableCrackers()
+    );
+  }
+
   async nuke() {
-    await this.ns.httpworm(this.name);
-    await this.ns.brutessh(this.name);
-    await this.ns.ftpcrack(this.name);
-    await this.ns.sqlinject(this.name);
-    await this.ns.relaysmtp(this.name);
+    if (this.homeFileExists("BruteSSH.exe")) await this.ns.brutessh(this.name);
+    if (this.homeFileExists("FTPCrack.exe")) await this.ns.ftpcrack(this.name);
+    if (this.homeFileExists("SQLInject.exe"))
+      await this.ns.sqlinject(this.name);
+    if (this.homeFileExists("relaySMTP.exe"))
+      await this.ns.relaysmtp(this.name);
+    if (this.homeFileExists("HTTPWorm.exe")) await this.ns.httpworm(this.name);
+
     await this.ns.nuke(this.name);
   }
 
@@ -84,12 +171,14 @@ export class Server extends NSObject {
   }
 
   async exec(script, threads, ...args) {
-    this.tlog(
+    this.log(
       `Running ${script} on ${
         this.name
       } with ${threads} threads and args "${args.join(" ")}"`
     );
-    await this.ns.exec(script, this.name, threads, ...args);
+
+    await this.setupScript(script);
+    return await this.ns.exec(script, this.name, threads, ...args);
   }
 
   async grow(server, {stock} = {stock: false}) {
@@ -171,6 +260,8 @@ export class Server extends NSObject {
   }
 
   async setupScript(script) {
+    if (this.name === "home") return; // home is setup by netrun.js
+
     let files = this.ns.ls("home");
     files = files.filter(file => file.endsWith(".js"));
 
@@ -189,7 +280,7 @@ export class Server extends NSObject {
     let threads = this.computeMaxThreads(script);
 
     this.log(`Running ${script} with ${threads}`);
-    await this.ns.run(script, threads, ...args);
+    await this.exec(script, threads, ...args);
 
     this.log(`Waiting for ${script} to complete...`);
     this.ns.disableLog("sleep");
@@ -200,10 +291,29 @@ export class Server extends NSObject {
     }
   }
 
+  async waitForScriptToComplete(script) {
+    while (true) {
+      if (!this.ns.scriptRunning(script, this.name)) return;
+      await this.ns.sleep(500);
+    }
+  }
+
+  async awaitRun(script, threads, ...args) {
+    this.ns.disableLog("sleep");
+
+    await this.exec(script, threads, ...args);
+    await this.sleep(1);
+
+    while (true) {
+      if (!this.ns.isRunning(script, this.name, ...args)) return;
+      await this.ns.sleep(500);
+    }
+  }
+
   computeMaxThreads(command) {
     const script = scriptForCommand(command);
 
-    let [total, used] = this.ns.getServerRam(this.name);
+    let [total, used] = this.ramInfo();
     let available = total - used;
 
     let commandRam = this.ns.getScriptRam(script);
@@ -213,6 +323,18 @@ export class Server extends NSObject {
 }
 
 export class Script extends BaseScript {
+  constructor(...args) {
+    super(...args);
+    this.disabledLogs = {};
+  }
+
+  disableLogging(...names) {
+    for (let name of names) {
+      if (name in this.disabledLogs) continue;
+      this.ns.disableLog(name);
+    }
+  }
+
   server(server) {
     return new Server(this.ns, server);
   }
@@ -233,7 +355,7 @@ export class ServerScript extends Script {
     this.s = new Server(ns, this.serverName);
 
     if (!this.s.exists()) {
-      return this.exit(
+      throw new Error(
         `Server "${this.serverName} - ${this.s.name}" does not exist`
       );
     }
