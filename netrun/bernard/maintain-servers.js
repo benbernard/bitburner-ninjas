@@ -14,13 +14,12 @@ class ThisScript extends TK.Script {
       let tier = this.targetTier(maxMoney);
       this.log(`Selected Tier: ${tier}`);
       let singleCost = this.tierCost(tier);
+      let usableMoney = this.usableMoney(maxMoney);
       if (!tier || this.usableMoney(maxMoney) < singleCost) {
         // Nothing to do
         await this.sleep(10000); // 10 seconds
         continue;
       }
-
-      let usableMoney = this.home.money() - 0.5;
 
       // How many to buy
       let purchaseCount = Math.min(

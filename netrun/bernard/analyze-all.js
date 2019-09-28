@@ -21,16 +21,23 @@ class ThisScript extends TK.Script {
     let servers = [];
     await this.s.traverse(server => servers.push(server), seen);
 
+    let type = this.pullFirstArg() || "money";
+
     servers = servers.sort((a, b) => {
       let compVal = 0;
 
-      if (compVal === 0) compVal = a.maxMoney() - b.maxMoney();
-      if (compVal === 0) compVal = a.hackingLevel() - b.hackingLevel();
+      if (type === "money" || type === "limited") {
+        if (compVal === 0) compVal = a.maxMoney() - b.maxMoney();
+        if (compVal === 0) compVal = a.hackingLevel() - b.hackingLevel();
+      } else if (type === "hack") {
+        if (compVal === 0) compVal = a.hackingLevel() - b.hackingLevel();
+        if (compVal === 0) compVal = a.maxMoney() - b.maxMoney();
+      }
 
       return compVal;
     });
 
-    if (this.pullFirstArg() === "limited") {
+    if (type === "limited") {
       let hackLevel = this.ns.getHackingLevel();
       servers = servers.filter(server => server.hackingLevel() <= hackLevel);
     }

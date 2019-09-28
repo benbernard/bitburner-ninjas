@@ -15,7 +15,7 @@ export class Server extends NSObject {
     super(ns);
     this.name = name;
     this.parent = parent;
-    this.useHalfRam = false;
+    this.maxRamUsedPercentage = 1;
     this.ignoredProcesses = [];
   }
 
@@ -80,12 +80,8 @@ export class Server extends NSObject {
     let [total, used] = this.ns.getServerRam(this.name);
     used -= this.ignoredProcessesRam();
 
-    if (this.useHalfRam) {
-      let halfMaxTotal = Math.floor(total * 0.5);
-      return [total, Math.min(used + halfMaxTotal, total)];
-    } else {
-      return [total, used];
-    }
+    let savedRam = total * (1 - this.maxRamUsedPercentage);
+    return [total, Math.min(used + savedRam, total)];
   }
 
   availableRam() {

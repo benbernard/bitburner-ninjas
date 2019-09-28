@@ -59,6 +59,8 @@ class ThisScript extends TK.Script {
       if (!didWork) {
         await this.fillExtraProcesses();
         await this.sleep(500);
+      } else {
+        await this.sleep(100);
       }
     }
   }
@@ -85,7 +87,7 @@ class ThisScript extends TK.Script {
         this.ns,
         extraScript,
         threads,
-        [...extraArgs, processCount++],
+        [...extraArgs],
         worker
       );
 
@@ -158,7 +160,7 @@ class ThisScript extends TK.Script {
     }
 
     let home = servers.find(s => s.name === "home");
-    home.useHalfRam = true;
+    home.maxRamUsedPercentage = 0.75;
 
     return servers.sort((a, b) => b.availableRam() - a.availableRam());
   }
@@ -266,7 +268,8 @@ export let main = ThisScript.runner();
 
 function securityTarget(server) {
   let min = server.minSecurity();
-  return min * 1.2 + 10;
+  let diff = Math.max(min * 0.2, 10);
+  return min + diff;
 }
 
 function moneyTarget(server) {
@@ -278,7 +281,7 @@ class RunningProcess extends NSObject {
     super(ns);
     this.script = script;
     this.threads = threads;
-    this.args = args;
+    this.args = [...args, processCount++];
     this.server = server;
   }
 
@@ -301,10 +304,15 @@ class RunningProcess extends NSObject {
     if (pid === 0) {
       let msg = `Could not start ${this.script} on ${
         this.server.name
-      }.  Threads: ${this.threads}, args: ${JSON.stringify(this.args)}!`;
+      }.  Threads: ${this.threads}, args: ${JSON.stringify(
+        this.args
+      )}, PS: ${JSON.stringify(this.server.ps())}, MemInfo: ${JSON.stringify(
+        this.server.ramInfo()
+      )} RealMemInfo: ${JSON.stringify(
+        this.ns.getServerRam(this.server.name)
+      )}!`;
 
       this.log(msg);
-      this.log(`PS: ` + JSON.stringify(this.server.ps()));
 
       throw new Error(msg);
     }
@@ -395,9 +403,13 @@ class TargetAttack extends NSObject {
       if (!selected) break;
 
       let maxThreads = selected.computeMaxThreads(this.script);
+      if (maxThreads <= 0) break;
+
       let runThreads = Math.min(desiredThreads, maxThreads);
       await this.addRun(selected, runThreads);
       desiredThreads -= runThreads;
+
+      await this.sleep(10);
     }
 
     return desiredThreads;

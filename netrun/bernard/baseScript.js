@@ -22,13 +22,26 @@ export class NSObject {
   }
 
   log(...msgs) {
-    const msg = `${Date.now()}: ${msgs.join(" ")}`;
+    const msg = `${this.logDate()}: ${msgs.join(" ")}`;
 
     if (USE_TPRINT_FOR_LOG) {
       this.tlog(msg);
     } else {
       this.ns.print(msg);
     }
+  }
+
+  logDate() {
+    let currentDate = new Date();
+
+    let year = currentDate.getFullYear();
+    let month = currentDate.getMonth() + 1;
+    let day = currentDate.getDate();
+
+    let hours = currentDate.getHours();
+    let minutes = currentDate.getMinutes();
+
+    return `${year}-${month}-${day} ${hours}:${minutes}`;
   }
 
   sleep(ms) {
