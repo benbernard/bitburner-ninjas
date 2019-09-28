@@ -16,10 +16,60 @@ export class Server extends NSObject {
     this.name = name;
     this.parent = parent;
     this.useHalfRam = false;
+    this.ignoredProcesses = [];
   }
 
   hackingLevel() {
     return this.ns.getServerRequiredHackingLevel(this.name);
+  }
+
+  killIgnoredProcesses() {
+    this.log(`Killing ignored procs on ${this.name}`);
+    let procs = this.runningIgnoredProcesses();
+    procs.forEach(proc => this.kill(proc.filename, ...proc.args));
+    return this.sleep(1);
+  }
+
+  runningIgnoredProcesses() {
+    let ps = this.ps();
+    let procs = [];
+    for (let proc of ps) {
+      for (let [script, args] of this.ignoredProcesses) {
+        let matchingArgs = proc.args.slice(0, args.length);
+        if (
+          proc.filename === script &&
+          JSON.stringify(matchingArgs) === JSON.stringify(args)
+        ) {
+          procs.push(proc);
+        }
+      }
+    }
+
+    return procs;
+  }
+
+  printRamInfo() {
+    this.tlog(
+      `Server ${
+        this.name
+      } - ${this.availableRam()}/${this.ram()} Avail/Used - NS: ${this.ns.getServerRam(
+        this.name
+      )}`
+    );
+
+    this.tlog(
+      `Ignored Procs: ${JSON.stringify(this.runningIgnoredProcesses())}`
+    );
+  }
+
+  ignoredProcessesRam() {
+    return this.runningIgnoredProcesses().reduce((sum, proc) => {
+      return sum + Math.floor(this.scriptRam(proc.filename) * proc.threads);
+    }, 0);
+  }
+
+  ignoreProcess(script, ...args) {
+    this.ignoredProcesses.push([script, ...args]);
   }
 
   ram() {
@@ -28,9 +78,10 @@ export class Server extends NSObject {
 
   ramInfo() {
     let [total, used] = this.ns.getServerRam(this.name);
+    used -= this.ignoredProcessesRam();
 
     if (this.useHalfRam) {
-      let halfMaxTotal = total / 2;
+      let halfMaxTotal = Math.floor(total * 0.5);
       return [total, Math.min(used + halfMaxTotal, total)];
     } else {
       return [total, used];
@@ -176,7 +227,7 @@ export class Server extends NSObject {
     this.log(
       `Running ${script} on ${
         this.name
-      } with ${threads} threads and args "${args.join(" ")}"`
+      } with ${threads} threads and args "${args.join(",")}"`
     );
 
     await this.setupScript(script);
@@ -316,13 +367,19 @@ export class Server extends NSObject {
     }
   }
 
+  scriptRam(script) {
+    return this.ns.getScriptRam(script);
+  }
+
   computeMaxThreads(command) {
     const script = scriptForCommand(command);
 
     let available = this.availableRam();
-    let commandRam = this.ns.getScriptRam(script);
+    let commandRam = this.scriptRam(script);
 
-    return Math.floor(available / commandRam);
+    let threads = Math.floor(available / commandRam);
+
+    return threads;
   }
 }
 

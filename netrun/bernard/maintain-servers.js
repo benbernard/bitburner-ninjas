@@ -37,7 +37,7 @@ class ThisScript extends TK.Script {
         name => this.ns.getServerRam(name)[0] < tier
       );
 
-      if (serversBelowTier.length === 0) {
+      if (serversBelowTier.length === 0 && spotsAvailable === 0) {
         this.log(`Servers are upgraded`);
         await this.sleep(10000);
         continue;

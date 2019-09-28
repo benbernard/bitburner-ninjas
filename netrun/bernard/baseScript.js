@@ -1,6 +1,9 @@
 // This class must not have any ns calls in it (besides print and tprint), as
 // its directly used by the minimal-* scripts.  Be careful not to add any
 // methods that overlap NS.* names
+const USE_TPRINT_FOR_LOG = false;
+// const USE_TPRINT_FOR_LOG = true;
+
 export class NSObject {
   constructor(ns) {
     this.ns = ns;
@@ -19,7 +22,13 @@ export class NSObject {
   }
 
   log(...msgs) {
-    this.ns.print(`${Date.now()}: ${msgs.join(" ")}`);
+    const msg = `${Date.now()}: ${msgs.join(" ")}`;
+
+    if (USE_TPRINT_FOR_LOG) {
+      this.tlog(msg);
+    } else {
+      this.ns.print(msg);
+    }
   }
 
   sleep(ms) {

@@ -17,7 +17,7 @@ let processCount = 1;
 class ThisScript extends TK.Script {
   constructor(...args) {
     super(...args);
-    this.activeServers = {};
+    this.activeAttacks = {};
     this.extraProcesses = {};
   }
 
@@ -31,6 +31,7 @@ class ThisScript extends TK.Script {
       "getServerRam",
       "getServerRequiredHackingLevel",
       "getServerNumPortsRequired",
+      "getServerMoneyAvailable",
       "getServerMaxMoney",
       "getServerMinSecurityLevel",
       "getServerSecurityLevel",
@@ -89,7 +90,7 @@ class ThisScript extends TK.Script {
       );
 
       try {
-        await process.run();
+        await process.run({killIgnored: false});
         this.addExtraProcess(process);
       } catch (e) {
         // Not sure why this fails sometimes, log and continue
@@ -125,24 +126,24 @@ class ThisScript extends TK.Script {
 
   async updateStatus() {
     let status = {};
-    for (let name of Object.keys(this.activeServers)) {
-      let scheduled = this.activeServers[name];
-      status[name] = scheduled.runningInfo();
+    for (let name of Object.keys(this.activeAttacks)) {
+      let attack = this.activeAttacks[name];
+      status[name] = attack.runningInfo();
     }
 
     await this.ns.write(STATUS_FILE, JSON.stringify(status, null, 2), "w");
   }
 
   async clearFinished() {
-    let finishedTasks = Object.values(this.activeServers).filter(
-      st => !st.isRunning()
+    let finishedAttacks = Object.values(this.activeAttacks).filter(
+      attack => !attack.isRunning()
     );
 
-    for (let task of finishedTasks) {
+    for (let attack of finishedAttacks) {
       this.log(
-        `Clearing finished task ${task.task} on ${task.worker.name} against ${task.target.name}`
+        `Clearing finished task ${attack.task} against ${attack.target.name}`
       );
-      delete this.activeServers[task.target.name];
+      delete this.activeAttacks[attack.target.name];
     }
 
     // Also clear out the extras
@@ -150,18 +151,16 @@ class ThisScript extends TK.Script {
   }
 
   async workers(useVirtualRam = true) {
-    let ramGetter = server => server.availableRam();
+    let servers = await this.rootedServers();
 
     if (useVirtualRam) {
-      ramGetter = server => this.availableVirtualRam(server);
+      servers.forEach(server => server.ignoreProcess(...EXTRA_PROCESS_CONFIG));
     }
-
-    let servers = await this.rootedServers();
 
     let home = servers.find(s => s.name === "home");
     home.useHalfRam = true;
 
-    return servers.sort((a, b) => ramGetter(b) - ramGetter(a));
+    return servers.sort((a, b) => b.availableRam() - a.availableRam());
   }
 
   availableVirtualRam(server) {
@@ -181,54 +180,54 @@ class ThisScript extends TK.Script {
   }
 
   async attackOne() {
-    // Gather servers for work
-    let workers = await this.workers();
+    let skippedTargets = [];
+    let foodTask = this.determineTask(this.server("foodnstuff"));
+    if (foodTask === TASKS.WEAKEN) {
+      skippedTargets.push("foodnstuff");
+    }
 
-    let target = (await this.actionTargets())[0];
-    if (!target) return false;
-    this.log(`Found target: ${target.name}`);
+    let targets = await this.actionTargets(skippedTargets);
 
-    let task = this.determineTask(target);
-    if (target.name === "foodnstuff" && task === "weaken") {
-      let targets = this.actionTargets();
-      if (targets.length > 1) {
-        target = targets[1];
-        task = this.determineTask(target);
+    let lastIndex;
+    for (let i = 0; i < targets.length; i++) {
+      lastIndex = i;
+      let target = targets[i];
+      if (target.name in this.activeAttacks) {
+        continue;
       } else {
-        return false;
+        break;
       }
     }
+    let target = targets[lastIndex];
 
-    let scheduled = ScheduledTask.create(this.ns, task, target);
-    let selectedWorker = scheduled.selectWorker(workers, w =>
-      this.availableVirtualRam(w)
-    );
-
-    if (selectedWorker) {
-      this.killExtraProcesses(selectedWorker);
-      this.setActiveTarget(target, scheduled);
-      await scheduled.run();
-      return true;
+    // If we selected the last index, it may already be in flight
+    if (!target || target.name in this.activeAttacks) {
+      return false;
     }
 
-    return false;
+    this.log(`Found target: ${target.name}`);
+
+    let evictableAttacks = targets
+      .slice(lastIndex + 1)
+      .filter(name => name in this.activeAttacks)
+      .map(name => this.activeAttacks[name]);
+
+    let task = this.determineTask(target);
+
+    let attack = new TargetAttack(this.ns, target, task);
+    await attack.start(await this.workers(), evictableAttacks);
+
+    this.activeAttacks[target.name] = attack;
+    return true;
   }
 
-  setActiveTarget(target, scheduled) {
-    this.activeServers[target.name] = scheduled;
-  }
-
-  serverActive(server) {
-    return server.name in this.activeServers;
-  }
-
-  async actionTargets() {
+  async actionTargets(skipTargets = []) {
     let servers = await this.rootedServers();
 
     return servers
       .filter(s => s.maxMoney() > 0) // exclude purchased and no-money servers
-      .filter(s => !(s.name in this.activeServers)) // not currently being worked
       .filter(s => s.hackingLevel() <= this.ns.getHackingLevel()) // can hack the server
+      .filter(s => skipTargets.indexOf(s.name) === -1)
       .sort((a, b) => b.maxMoney() - a.maxMoney()); // most money making
   }
 
@@ -249,7 +248,8 @@ class ThisScript extends TK.Script {
   }
 
   async reachableServers() {
-    return await this.s.reachableServers({}, true);
+    // Careful not to re-use this.s for traversal, the rest of the code needs unique servers
+    return await this.server(this.s.name).reachableServers({}, true);
   }
 
   async rootReachableServers() {
@@ -262,118 +262,16 @@ class ThisScript extends TK.Script {
   }
 }
 
+export let main = ThisScript.runner();
+
 function securityTarget(server) {
   let min = server.minSecurity();
-  return min * 1.2;
+  return min * 1.2 + 10;
 }
 
 function moneyTarget(server) {
   return server.maxMoney() * 0.9;
 }
-
-class ScheduledTask extends NSObject {
-  constructor(ns, task, script, target) {
-    super(ns);
-    this.task = task;
-    this.script = script;
-    this.target = target;
-  }
-
-  ramUsage() {
-    return this.ns.getScriptRam(this.script);
-  }
-
-  maxServerThreads() {
-    let maxRam = this.ns.getPurchasedServerMaxRam();
-    return Math.floor(maxRam / this.ramUsage());
-  }
-
-  selectWorker(workers, availableRamFn) {
-    let prevWorker = workers[0];
-    let desiredThreads = this.desiredThreads();
-
-    for (let worker of workers.slice(1)) {
-      let commandRam = this.ns.getScriptRam(this.script);
-
-      // This allows for virtual ram usage
-      let availableRam = availableRamFn(worker);
-      let maxThreadsForWorker = Math.floor(availableRam / commandRam);
-
-      if (desiredThreads > maxThreadsForWorker) {
-        break;
-      }
-
-      prevWorker = worker;
-    }
-
-    this.worker = prevWorker;
-
-    if (this.workerThreads() <= 0) {
-      return null;
-    }
-
-    return prevWorker;
-  }
-
-  workerThreads() {
-    return Math.min(
-      this.desiredThreads(),
-      this.worker.computeMaxThreads(this.script)
-    );
-  }
-
-  runningInfo() {
-    return `${this.task.toUpperCase()} - on ${this.worker.name} with ${
-      this.runningProcess.threads
-    } threads, against ${this.target.name}`;
-  }
-
-  async run() {
-    let process = new RunningProcess(
-      this.ns,
-      this.script,
-      this.workerThreads(),
-      [this.target.name],
-      this.worker
-    );
-    let pid = await process.run();
-
-    this.runningProcess = process;
-    this.log(`ScheduledTask Started: ${this.runningInfo()}`);
-  }
-
-  isRunning() {
-    if (!this.runningProcess) return false;
-    return this.runningProcess.isRunning();
-  }
-
-  desiredThreads() {
-    switch (this.task) {
-      case TASKS.WEAKEN:
-        return Math.min(
-          this.target.threadsForMinWeaken(),
-          this.maxServerThreads()
-        );
-      case TASKS.GROW:
-        return Math.min(
-          this.target.threadsForMaxGrowth(),
-          this.maxServerThreads()
-        );
-      case TASKS.HACK:
-        return Math.min(
-          this.target.threadsForHack(0.5),
-          this.maxServerThreads()
-        );
-    }
-  }
-
-  static create(ns, task, target) {
-    let script = `minimal-${task.toLowerCase()}.js`;
-    return new ScheduledTask(ns, task, script, target);
-  }
-}
-
-export let main = ThisScript.runner();
 
 class RunningProcess extends NSObject {
   constructor(ns, script, threads, args, server) {
@@ -396,18 +294,133 @@ class RunningProcess extends NSObject {
     return this.server.kill(this.script, ...this.args);
   }
 
-  async run() {
+  async run({killIgnoredProcesses} = {killIgnoredProcesses: true}) {
+    if (killIgnoredProcesses) await this.server.killIgnoredProcesses();
     let pid = await this.server.exec(this.script, this.threads, ...this.args);
 
     if (pid === 0) {
-      throw new Error(
-        `Could not start ${this.script} on ${this.server.name}.  Threads: ${
-          this.threads
-        }, args: ${JSON.stringify(this.args)}!`
-      );
+      let msg = `Could not start ${this.script} on ${
+        this.server.name
+      }.  Threads: ${this.threads}, args: ${JSON.stringify(this.args)}!`;
+
+      this.log(msg);
+      this.log(`PS: ` + JSON.stringify(this.server.ps()));
+
+      throw new Error(msg);
     }
 
     await this.sleep(1);
     return pid;
+  }
+
+  runningInfo() {
+    return `Running ${this.script} on ${this.server.name} (t=${
+      this.threads
+    }) args: ${JSON.stringify(this.args)}`;
+  }
+}
+
+class TargetAttack extends NSObject {
+  constructor(ns, target, task) {
+    super(ns);
+    this.target = target;
+    this.runningProcesses = [];
+    this.task = task;
+  }
+
+  kill() {
+    this.runningProcesses.forEach(proc => proc.kill());
+  }
+
+  isRunning() {
+    this.clearFinished();
+    return this.runningProcesses.length > 0;
+  }
+
+  clearFinished() {
+    this.runningProcesses = this.runningProcesses.filter(proc =>
+      proc.isRunning()
+    );
+  }
+
+  desiredThreads() {
+    switch (this.task) {
+      case TASKS.WEAKEN:
+        return this.target.threadsForMinWeaken();
+      case TASKS.GROW:
+        return this.target.threadsForMaxGrowth();
+      case TASKS.HACK:
+        return this.target.threadsForHack(0.5);
+      default:
+        throw new Error(`Unrecognized task ${this.task}`);
+    }
+  }
+
+  get script() {
+    return `minimal-${this.task}.js`;
+  }
+
+  ram() {
+    return this.runningProcesses.reduce((sum, proc) => sum + proc.ram(), 0);
+  }
+
+  async addRun(worker, threads) {
+    let process = new RunningProcess(
+      this.ns,
+      this.script,
+      threads,
+      [this.target.name],
+      worker
+    );
+    let pid = await process.run();
+    this.runningProcesses.push(process);
+  }
+
+  async start(workers, evictableAttacks) {
+    let desiredThreads = this.desiredThreads();
+
+    desiredThreads = await this.useAvailableRam(workers, desiredThreads);
+    if (desiredThreads === 0) return;
+
+    for (let attack of evictableAttacks.reverse()) {
+      attack.kill();
+      desiredThreads = await this.useAvailableRam(workers, desiredThreads);
+      if (desiredThreads === 0) break;
+    }
+  }
+
+  async useAvailableRam(workers, desiredThreads) {
+    while (desiredThreads > 0) {
+      let selected = this.selectCapableWorker(workers, desiredThreads);
+      if (!selected) break;
+
+      let maxThreads = selected.computeMaxThreads(this.script);
+      let runThreads = Math.min(desiredThreads, maxThreads);
+      await this.addRun(selected, runThreads);
+      desiredThreads -= runThreads;
+    }
+
+    return desiredThreads;
+  }
+
+  selectCapableWorker(workers, desiredThreads) {
+    let sorted = workers.sort((a, b) => b.availableRam() - a.availableRam());
+    let selected = sorted[0];
+
+    for (let worker of sorted.slice(1)) {
+      let maxRunnable = worker.computeMaxThreads(this.script);
+      if (maxRunnable < desiredThreads) {
+        break;
+      } else {
+        selected = worker;
+      }
+    }
+
+    if (selected.computeMaxThreads(this.script) !== 0) return selected;
+    return false;
+  }
+
+  runningInfo() {
+    return this.runningProcesses.map(proc => proc.runningInfo());
   }
 }

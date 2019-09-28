@@ -24,7 +24,12 @@ class ThisScript extends TK.Script {
         await this.ns.sleep(100);
 
         let shouldSolve = false;
-        if (contract.triesLeft === 10 || contract.triesLeft === 1) {
+        if (
+          contract.triesLeft === 10 ||
+          contract.triesLeft === 1 ||
+          contract.triesLeft === 5 ||
+          contract.triesLeft === 15
+        ) {
           // This means we tried once and failed!
           shouldSolve = true;
         }
