@@ -68,8 +68,10 @@ export class Server extends NSObject {
     return Math.ceil(target / 0.05);
   }
 
-  threadsForHack(amount) {
-    return Math.ceil(this.ns.hackAnalyzeThreads(this.name, amount));
+  threadsForHack(fraction) {
+    return Math.ceil(
+      this.ns.hackAnalyzeThreads(this.name, this.money() * fraction)
+    );
   }
 
   threadsForMaxGrowth() {
@@ -325,6 +327,11 @@ export class Server extends NSObject {
 }
 
 export class Script extends BaseScript {
+  get home() {
+    if (!this._home) this._home = this.server("home");
+    return this._home;
+  }
+
   server(server) {
     return new Server(this.ns, server);
   }

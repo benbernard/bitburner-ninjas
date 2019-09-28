@@ -7,10 +7,12 @@ let TASKS = {
   HACK: "hack",
 };
 
-let HOME_TENDERS = ["scheduled-cct.js"];
+let HOME_TENDERS = ["scheduled-cct.js", "maintain-servers.js"];
 
 let STATUS_FILE = "hydra-status.txt";
 let EXTRA_PROCESS_CONFIG = ["minimal-weaken.js", ["foodnstuff"]];
+
+let processCount = 1;
 
 class ThisScript extends TK.Script {
   constructor(...args) {
@@ -78,14 +80,11 @@ class ThisScript extends TK.Script {
 
       if (threads <= 0) continue;
 
-      // count allows us to start multiple instances
-      let count = this.extraProcessesFor(worker).length;
-
       let process = new RunningProcess(
         this.ns,
         extraScript,
         threads,
-        [...extraArgs, count],
+        [...extraArgs, processCount++],
         worker
       );
 
@@ -190,6 +189,15 @@ class ThisScript extends TK.Script {
     this.log(`Found target: ${target.name}`);
 
     let task = this.determineTask(target);
+    if (target.name === "foodnstuff" && task === "weaken") {
+      let targets = this.actionTargets();
+      if (targets.length > 1) {
+        target = targets[1];
+        task = this.determineTask(target);
+      } else {
+        return false;
+      }
+    }
 
     let scheduled = ScheduledTask.create(this.ns, task, target);
     let selectedWorker = scheduled.selectWorker(workers, w =>
@@ -352,7 +360,10 @@ class ScheduledTask extends NSObject {
           this.maxServerThreads()
         );
       case TASKS.HACK:
-        return this.maxServerThreads();
+        return Math.min(
+          this.target.threadsForHack(0.5),
+          this.maxServerThreads()
+        );
     }
   }
 
