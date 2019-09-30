@@ -22,7 +22,7 @@ class ThisScript extends TK.Script {
   }
 
   async purchasedServersInfo() {
-    let purchased = this.ns.getPurchasedServers(true);
+    let purchased = [this.home.name, ...this.ns.getPurchasedServers(true)];
 
     this.tlog(`Purchased Servers:`);
     for (let name of purchased) {

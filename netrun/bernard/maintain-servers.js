@@ -47,7 +47,7 @@ class ThisScript extends TK.Script {
         serversBelowTier.length
       );
 
-      if (deleteCount > 1) {
+      if (deleteCount > 0) {
         let toDelete = serversBelowTier
           .sort((a, b) => this.ns.getServerRam(a) - this.ns.getServerRam(b))
           .slice(0, deleteCount);
@@ -63,6 +63,8 @@ class ThisScript extends TK.Script {
         this.log(`Buying server at ${tier}`);
         this.ns.purchaseServer("hydra", tier);
       }
+
+      await this.sleep(1000);
     }
   }
 

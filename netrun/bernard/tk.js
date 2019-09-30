@@ -10,6 +10,8 @@ export let _ = {
   },
 };
 
+const LIBRARY_FILES = ["baseScript.js", "tk.js"];
+
 export class Server extends NSObject {
   constructor(ns, name, parent) {
     super(ns);
@@ -204,6 +206,8 @@ export class Server extends NSObject {
       `Money: ${this.cFormat(this.money())} / ${this.cFormat(this.maxMoney())}`,
       `Hack: ${this.hackingLevel()}`,
       `Root: ${this.hasRoot() ? "YES" : "NO"}`,
+      `Security: ${Math.ceil(this.security())} / ${this.minSecurity()}`,
+      `Ram: ${this.rFormat(this.availableRam())} / ${this.rFormat(this.ram())}`,
     ];
 
     if (includePath) parts.push(`Path: ${this.path()}`);
@@ -312,11 +316,14 @@ export class Server extends NSObject {
     return this.ns.ls(this.name);
   }
 
+  rm(filename) {
+    return this.ns.rm(filename, this.name);
+  }
+
   async setupScript(script) {
     if (this.name === "home") return; // home is setup by netrun.js
 
-    let files = this.ns.ls("home");
-    files = files.filter(file => file.endsWith(".js"));
+    let files = [...LIBRARY_FILES, script];
 
     // Remove files before scp to suppress warnings
     for (let file of files) {

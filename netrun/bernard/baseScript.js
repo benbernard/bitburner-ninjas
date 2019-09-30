@@ -3,6 +3,8 @@
 // methods that overlap NS.* names
 const USE_TPRINT_FOR_LOG = false;
 // const USE_TPRINT_FOR_LOG = true;
+// const CONSOLE_LOG = false;
+const CONSOLE_LOG = true;
 
 export class NSObject {
   constructor(ns) {
@@ -21,14 +23,20 @@ export class NSObject {
     this.ns.tprint(msgs.join(" "));
   }
 
+  scriptName() {
+    return this.ns.getScriptName();
+  }
+
   log(...msgs) {
-    const msg = `${this.logDate()}: ${msgs.join(" ")}`;
+    const msg = `${this.scriptName()}:${this.logDate()}: ${msgs.join(" ")}`;
 
     if (USE_TPRINT_FOR_LOG) {
       this.tlog(msg);
     } else {
       this.ns.print(msg);
     }
+
+    if (CONSOLE_LOG) console.log(msg);
   }
 
   logDate() {
@@ -48,12 +56,16 @@ export class NSObject {
     return this.ns.sleep(ms);
   }
 
+  nFormat(number) {
+    return this.ns.nFormat(number, "0.0a");
+  }
+
   cFormat(money) {
     return this.ns.nFormat(money, "$0.0 a");
   }
 
   rFormat(ram) {
-    return this.ns.nFormat(ram * (1024 * 1024 * 1024), "0b");
+    return this.ns.nFormat(ram * (1024 * 1024 * 1024), "0ib");
   }
 
   async exit(msg) {

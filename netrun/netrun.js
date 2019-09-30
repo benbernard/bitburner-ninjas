@@ -3,7 +3,13 @@
 // in the toolkit that doesn't even allow scripts to load
 const RELOAD_SCRIPT = "netrun-reload.js";
 
-let LIBRARY_FILES = ["baseScript.js", "tk.js", "contracts.js", "purchased.js"];
+let LIBRARY_FILES = [
+  "baseScript.js",
+  "tk.js",
+  "contracts.js",
+  "purchased.js",
+  "stock.js",
+];
 
 let NS;
 export async function main(ns) {
@@ -83,6 +89,7 @@ async function updateFiles() {
   let contents = JSON.parse(NS.read(INFO_FILE));
 
   for (let file of LIBRARY_FILES) {
+    if (!(file in contents)) continue;
     await updateFile(file, contents[file]);
   }
 

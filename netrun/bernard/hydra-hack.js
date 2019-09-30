@@ -10,7 +10,7 @@ let TASKS = {
 let HOME_TENDERS = ["scheduled-cct.js", "maintain-servers.js"];
 
 let STATUS_FILE = "hydra-status.txt";
-let EXTRA_PROCESS_CONFIG = ["minimal-weaken.js", ["foodnstuff"]];
+let EXTRA_PROCESS_CONFIG = ["looped-weaken.js", ["joesguns", "0"]];
 
 let processCount = 1;
 
@@ -78,7 +78,8 @@ class ThisScript extends TK.Script {
     let [extraScript, extraArgs] = EXTRA_PROCESS_CONFIG;
 
     for (let worker of workers) {
-      if (worker.availableRam() <= 1) break;
+      if (worker.availableRam() <= 64) continue;
+      if (worker.availableRam() !== worker.ram()) continue; // only run on un-touched boxes
       let threads = worker.computeMaxThreads(extraScript);
 
       if (threads <= 0) continue;
@@ -183,9 +184,9 @@ class ThisScript extends TK.Script {
 
   async attackOne() {
     let skippedTargets = [];
-    let foodTask = this.determineTask(this.server("foodnstuff"));
+    let foodTask = this.determineTask(this.server("joesguns"));
     if (foodTask === TASKS.WEAKEN) {
-      skippedTargets.push("foodnstuff");
+      skippedTargets.push("joesguns");
     }
 
     let targets = await this.actionTargets(skippedTargets);
@@ -294,14 +295,14 @@ class RunningProcess extends NSObject {
   }
 
   kill() {
-    return this.server.kill(this.script, ...this.args);
+    return this.server.kill(this.pid);
   }
 
   async run({killIgnoredProcesses} = {killIgnoredProcesses: true}) {
     if (killIgnoredProcesses) await this.server.killIgnoredProcesses();
-    let pid = await this.server.exec(this.script, this.threads, ...this.args);
+    this.pid = await this.server.exec(this.script, this.threads, ...this.args);
 
-    if (pid === 0) {
+    if (this.pid === 0) {
       let msg = `Could not start ${this.script} on ${
         this.server.name
       }.  Threads: ${this.threads}, args: ${JSON.stringify(
@@ -318,7 +319,7 @@ class RunningProcess extends NSObject {
     }
 
     await this.sleep(1);
-    return pid;
+    return this.pid;
   }
 
   runningInfo() {
@@ -377,7 +378,7 @@ class TargetAttack extends NSObject {
       this.ns,
       this.script,
       threads,
-      [this.target.name],
+      [this.target.name, this.script === "minimal-grow.js" ? "1" : "0"],
       worker
     );
     let pid = await process.run();
