@@ -5,12 +5,7 @@ class ThisScript extends TK.Script {
   async perform() {
     let messaging = new BankMessaging(this.ns);
 
-    if (this.ns.args[0] === "clear") {
-      messaging.requestHandle().clear();
-      messaging.responseHandle().clear();
-    }
-
-    let response = await messaging.sendAndWait({type: "hello"});
+    let response = await messaging.walletInfo(this.args[0]);
     this.tlog(`response: ${JSON.stringify(response)}`);
   }
 }

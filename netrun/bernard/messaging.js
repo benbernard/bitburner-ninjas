@@ -53,7 +53,16 @@ export class Messaging extends NSObject {
     requestHandle.write(request);
 
     let handle = this.responseHandle();
+    let limit = 20;
+    let count = 0;
     while (true) {
+      count++;
+      if (count > limit) {
+        throw new Error(
+          `TIMEOUT: No response received for ${JSON.stringify(request)}`
+        );
+      }
+
       await this.sleep(100);
       if (handle.data.length > 1) {
         let response = handle.data.find(msg => msg.responseTo === uuid);
@@ -62,7 +71,7 @@ export class Messaging extends NSObject {
         let index = handle.data.indexOf(response);
         handle.data.splice(index, 1);
 
-        return response;
+        return response.data;
       }
     }
   }
@@ -72,4 +81,23 @@ export class BankMessaging extends Messaging {
   constructor(ns) {
     super(ns, BANK_REQUEST_PORT, BANK_RESPONSE_PORT);
   }
+
+  walletInfo(name) {
+    return this.sendAndWait({
+      type: BankMessaging.WALLET_INFO,
+      wallet: name,
+    });
+  }
+
+  purchaseServer(name, ram) {
+    return this.sendAndWait({
+      type: BankMessaging.PURCHASE_SERVER,
+      wallet: "servers",
+      serverName: name,
+      ram,
+    });
+  }
 }
+
+BankMessaging.WALLET_INFO = "wallet_info";
+BankMessaging.PURCHASE_SERVER = "purchase_server";

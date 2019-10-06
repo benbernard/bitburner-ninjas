@@ -1,4 +1,5 @@
 import * as TK from "./tk.js";
+import {BankMessaging} from "./messaging.js";
 
 const MAX_MONEY_FILE = "max-money-seen.txt";
 
@@ -6,18 +7,28 @@ let targetTiers = [128, 1024, 16384, 262144, 1048576];
 
 class ThisScript extends TK.Script {
   async perform() {
+    this.bank = new BankMessaging(this.ns);
+
+    let count = 0;
     while (true) {
-      let maxMoney = this.getMaxMoney();
-      this.writeMaxMoney(maxMoney); // Update the file
+      count++;
+      if (count > 2) break;
+      let wallet = await this.bank.walletInfo("servers");
+      if (wallet.amount < 0) {
+        await this.sleep(60000);
+        continue;
+      }
+
+      let usableMoney = wallet.amount;
 
       // Can we purchase any of the correct tier
-      let tier = this.targetTier(maxMoney);
+      let tier = this.targetTier(usableMoney);
+
       this.log(`Selected Tier: ${tier}`);
       let singleCost = this.tierCost(tier);
-      let usableMoney = this.usableMoney(maxMoney);
-      if (!tier || this.usableMoney(maxMoney) < singleCost) {
+      if (!tier) {
         // Nothing to do
-        await this.sleep(10000); // 10 seconds
+        await this.sleep(60000); // 10 seconds
         continue;
       }
 
@@ -53,19 +64,38 @@ class ThisScript extends TK.Script {
           .slice(0, deleteCount);
 
         for (let name of toDelete) {
-          this.log(`Deleting ${name}`);
-          this.ns.killall(name);
-          this.ns.deleteServer(name);
+          this.removeServer(name);
         }
       }
 
       for (let i = 0; i < purchaseCount; i++) {
-        this.log(`Buying server at ${tier}`);
-        this.ns.purchaseServer("hydra", tier);
+        this.tlog(`Buying server at ${tier}`);
+        let response = await this.bank.purchaseServer("hydra", tier);
+        if (!response.purchased) {
+          this.tlog(`Unknown problem buying server at ${tier}!`);
+          break;
+        } else {
+          this.log(`Successfully purchased!`);
+        }
       }
 
       await this.sleep(1000);
     }
+  }
+
+  buyableTiers() {
+    let purchasedServers = this.ns
+      .getPurchasedServers()
+      .map(name => new TK.Server(this.ns, name));
+
+    let minPurchased = Math.min(...purchasedServers.map(s => s.ram()));
+    return targetTiers.filter(r => r >= minPurchased);
+  }
+
+  removeServer(name) {
+    this.log(`Deleting ${name}`);
+    this.ns.killall(name);
+    this.ns.deleteServer(name);
   }
 
   usableMoney(maxMoney) {
@@ -76,28 +106,14 @@ class ThisScript extends TK.Script {
     return this.ns.getPurchasedServerCost(tier);
   }
 
-  targetTier(maxMoney) {
+  targetTier(money) {
     let chosenTier = null;
-    for (let tier of targetTiers) {
+    for (let tier of this.buyableTiers()) {
       let cost = this.tierCost(tier);
-      if (cost * 10 < maxMoney) chosenTier = tier;
+      if (cost < money) chosenTier = tier;
     }
 
     return chosenTier;
-  }
-
-  getMaxMoney() {
-    let fileMoney = 0;
-    if (this.home.fileExists(MAX_MONEY_FILE)) {
-      let contents = this.ns.read(MAX_MONEY_FILE);
-      fileMoney = parseInt(contents);
-    }
-
-    return Math.max(fileMoney, this.home.money());
-  }
-
-  writeMaxMoney(money) {
-    this.ns.write(MAX_MONEY_FILE, money.toString(), "w");
   }
 }
 
