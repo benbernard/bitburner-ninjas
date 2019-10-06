@@ -269,7 +269,7 @@ export let main = ThisScript.runner();
 
 function securityTarget(server) {
   let min = server.minSecurity();
-  let diff = Math.max(min * 0.2, 10);
+  let diff = Math.max(min * 0.2, 5);
   return min + diff;
 }
 

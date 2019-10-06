@@ -8,6 +8,7 @@ const CONSOLE_LOG = true;
 
 export class NSObject {
   constructor(ns) {
+    if (!ns) throw new Error(`No ns object passed to NSOBject`);
     this.ns = ns;
     this.disabledLogs = {};
   }

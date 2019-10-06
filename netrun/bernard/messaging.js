@@ -1,0 +1,75 @@
+import {BaseScript, NSObject} from "./baseScript.js";
+
+const BANK_REQUEST_PORT = 1;
+const BANK_RESPONSE_PORT = 2;
+
+export class Messaging extends NSObject {
+  constructor(ns, requestPort, responsePort) {
+    super(ns);
+    this.requestPort = requestPort;
+    this.responsePort = responsePort;
+  }
+
+  requestHandle() {
+    return this.ns.getPortHandle(this.requestPort);
+  }
+
+  responseHandle() {
+    return this.ns.getPortHandle(this.responsePort);
+  }
+
+  uuid() {
+    return (
+      Math.random()
+        .toString(36)
+        .substring(2, 15) +
+      Math.random()
+        .toString(36)
+        .substring(2, 15)
+    );
+  }
+
+  createMessage(data, metadata = {}) {
+    return {
+      uuid: this.uuid(),
+      data,
+      ...metadata,
+    };
+  }
+
+  sendResponse(request, data) {
+    let response = this.createMessage(data, {
+      responseTo: request.uuid,
+    });
+
+    this.responseHandle().write(response);
+  }
+
+  async sendAndWait(request) {
+    let requestHandle = this.requestHandle();
+    if (!request.uuid) request = this.createMessage(request);
+
+    let uuid = request.uuid;
+    requestHandle.write(request);
+
+    let handle = this.responseHandle();
+    while (true) {
+      await this.sleep(100);
+      if (handle.data.length > 1) {
+        let response = handle.data.find(msg => msg.responseTo === uuid);
+        if (!response) continue;
+
+        let index = handle.data.indexOf(response);
+        handle.data.splice(index, 1);
+
+        return response;
+      }
+    }
+  }
+}
+
+export class BankMessaging extends Messaging {
+  constructor(ns) {
+    super(ns, BANK_REQUEST_PORT, BANK_RESPONSE_PORT);
+  }
+}

@@ -7,7 +7,7 @@ let CONVERSIONS = {
 };
 
 let BUY_FORECAST = 0.59;
-let SELL_FORECAST = 0.52;
+let SELL_FORECAST = 0.55;
 
 class ThisScript extends TK.Script {
   async perform() {
@@ -21,10 +21,8 @@ class ThisScript extends TK.Script {
     this.useAvailableMoney();
 
     while (true) {
-      let sold = this.sellLosers();
-      if (sold) {
-        this.useAvailableMoney();
-      }
+      this.sellLosers();
+      this.useAvailableMoney();
 
       await this.sleep(6000); // Stock updates at 6 seconds
     }
@@ -35,10 +33,13 @@ class ThisScript extends TK.Script {
     let availableMoney = this.availableMoney();
 
     for (let stock of this.candidateStocks()) {
+      this.log(`Considering ${stock.symbol}`);
       let [cost, canBuyMore] = this.buyStock(stock, availableMoney);
       availableMoney -= cost;
-      if (!canBuyMore) break;
+      if (availableMoney < this.bank * 0.1) break;
     }
+
+    this.log(`Remaining money: ${this.cFormat(availableMoney)}`);
   }
 
   sellLosers() {
@@ -64,7 +65,7 @@ class ThisScript extends TK.Script {
 
   buyStock(stock, money) {
     let position = this.positions[stock.symbol];
-    let maxShares = Math.floor(stock.maxShares() * 0.2) - position.shares;
+    let maxShares = Math.floor(stock.maxShares() * 0.4) - position.shares;
     let shareCost = stock.askPrice();
 
     let canBuyMore = false;
@@ -103,7 +104,7 @@ class ThisScript extends TK.Script {
       this.bank -
       Object.values(this.positions).reduce((sum, p) => sum + p.cost(), 0);
 
-    this.log(`Found available money: ${available}`);
+    this.log(`Found available money: ${this.cFormat(available)}`);
     return available;
   }
 
@@ -139,7 +140,7 @@ class ThisScript extends TK.Script {
   candidateStocks() {
     let stocks = this.market.stocks();
     return stocks
-      .filter(s => s.forecast() > 0.59)
+      .filter(s => s.forecast() > BUY_FORECAST)
       .sort((a, b) => b.volatility() - a.volatility());
   }
 }

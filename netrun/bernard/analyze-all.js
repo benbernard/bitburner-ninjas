@@ -42,7 +42,7 @@ class ThisScript extends TK.Script {
       servers = servers.filter(server => server.hackingLevel() <= hackLevel);
     }
 
-    servers.forEach(server => this.tlog(server.info()));
+    servers.forEach(server => this.tlog(server.info(true)));
   }
 
   async printTree(seen) {

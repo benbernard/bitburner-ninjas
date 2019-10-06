@@ -9,6 +9,7 @@ let LIBRARY_FILES = [
   "contracts.js",
   "purchased.js",
   "stock.js",
+  "messaging.js",
 ];
 
 let NS;
