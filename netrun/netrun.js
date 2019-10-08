@@ -10,6 +10,8 @@ let LIBRARY_FILES = [
   "purchased.js",
   "stock.js",
   "messaging.js",
+  "utils.js",
+  "bank.js",
 ];
 
 let NS;

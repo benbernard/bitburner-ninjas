@@ -63,9 +63,48 @@ class ThisScript extends TK.Script {
       }
 
       this.messaging.sendResponse(req, {purchased});
+    } else if (type === BankMessaging.PURCHASE_EQUIPMENT) {
+      let wallet = this.wallet(req.data.wallet);
+      let name = req.data.memberName;
+      let equipment = req.data.equipmentName;
+
+      let cost = this.ns.gang.getEquipmentCost(equipment);
+
+      let purchased = false;
+      if (cost < wallet.amount) {
+        this.purchaseForWallet(
+          wallet.name,
+          `Buying ${equipment} at ${cost} for ${name}`,
+          () => {
+            this.ns.gang.purchaseEquipment(name, equipment);
+          }
+        );
+        purchased = true;
+        this.messaging.sendResponse(req, {purchased});
+      }
+    } else if (type === BankMessaging.DEPOSIT) {
+      let wallet = this.wallet(req.data.wallet);
+      let amount = req.data.amount;
+      this.deposit(wallet, amount, req);
     } else {
       this.tlog(`Bank received unknown message type: ${type}`);
     }
+  }
+
+  deposit(wallet, amount, req) {
+    if (amount > this.unallocatedMoney()) {
+      this.messaging.sendResponse(req, {success: false});
+    }
+
+    wallet.amount += amount;
+    this.saveState();
+
+    this.messaging.sendResponse(req, {success: true});
+  }
+
+  unallocatedMoney() {
+    let walletTotal = this.wallets.reduce((sum, e) => e.amount + sum, 0);
+    return this.actualMoney() - walletTotal;
   }
 
   purchaseForWallet(walletName, description, fn) {

@@ -89,15 +89,34 @@ export class BankMessaging extends Messaging {
     });
   }
 
-  purchaseServer(name, ram) {
+  buyServer(serverName, ram) {
     return this.sendAndWait({
       type: BankMessaging.PURCHASE_SERVER,
       wallet: "servers",
-      serverName: name,
+      serverName,
       ram,
+    });
+  }
+
+  buyEquipment(memberName, equipmentName) {
+    return this.sendAndWait({
+      type: BankMessaging.PURCHASE_EQUIPMENT,
+      wallet: "gang",
+      memberName,
+      equipmentName,
+    });
+  }
+
+  deposit(wallet, amount) {
+    return this.sendAndWait({
+      type: BankMessaging.DEPOSIT,
+      wallet,
+      amount,
     });
   }
 }
 
 BankMessaging.WALLET_INFO = "wallet_info";
 BankMessaging.PURCHASE_SERVER = "purchase_server";
+BankMessaging.PURCHASE_EQUIPMENT = "purchase_equipment";
+BankMessaging.DEPOSIT = "deposit";

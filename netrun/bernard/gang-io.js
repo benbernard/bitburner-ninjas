@@ -1,5 +1,12 @@
 import * as TK from "./tk.js";
-import {Gang} from "./gangs.js";
+import {Gang, TASKS} from "./gangs.js";
+
+const map = {
+  train: TASKS.TRAIN_COMBAT,
+  war: TASKS.TERRITORY_WARFARE,
+  wanted: TASKS.VIGILANTE_JUSTICE,
+  vigilante: TASKS.VIGILANTE_JUSTICE,
+};
 
 class ThisScript extends TK.Script {
   async perform() {
@@ -7,16 +14,17 @@ class ThisScript extends TK.Script {
 
     this.tlog(this.ns.gang.getTaskNames());
 
-    let members = this.gang.members().filter(m => !m.isWorking());
+    let task = map[this.args[0]];
+    if (!task) {
+      this.tlog(`Gang Info:`);
+      this.gang.members().forEach(m => this.tlog(`  ${m.name} - ${m.task}`));
+      return;
+    }
 
-    if (members.length === 0) throw new Error(`No Unassigned gang member`);
-    let m = members[0];
-
-    m.setTask("Train Combat");
-
-    // this.tlog(`Members:`);
-    // this.gang.members().forEach(m => this.tlog(`  ${m.name} - ${m.task}`));
+    let prompt = await this.ns.prompt(`Switch all gang members to ${task}?`);
+    if (prompt) {
+      this.gang.members().forEach(m => m.setTask(task));
+    }
   }
 }
-
 export let main = ThisScript.runner();

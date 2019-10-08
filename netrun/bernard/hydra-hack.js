@@ -42,25 +42,30 @@ class ThisScript extends TK.Script {
     await this.setupHome();
 
     while (true) {
-      // This is the main event loop
+      try {
+        // This is the main event loop
 
-      // First clear any finished tasks
-      await this.clearFinished();
+        // First clear any finished tasks
+        await this.clearFinished();
 
-      // First try to hack new machines
-      await this.rootReachableServers();
+        // First try to hack new machines
+        await this.rootReachableServers();
 
-      // Attack a server if possible
-      let didWork = await this.attackOne();
+        // Attack a server if possible
+        let didWork = await this.attackOne();
 
-      // Update Status
-      await this.updateStatus();
+        // Update Status
+        await this.updateStatus();
 
-      if (!didWork) {
-        await this.fillExtraProcesses();
+        if (!didWork) {
+          await this.fillExtraProcesses();
+          await this.sleep(500);
+        } else {
+          await this.sleep(100);
+        }
+      } catch (e) {
+        this.tlog(`Error in hydra loop: ${e.message}, continuing`);
         await this.sleep(500);
-      } else {
-        await this.sleep(100);
       }
     }
   }

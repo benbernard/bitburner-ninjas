@@ -1,5 +1,6 @@
 import * as TK from "./tk.js";
 import {Market} from "./stocks.js";
+import {convertStrToMoney} from "./utils.js";
 
 let CONVERSIONS = {
   b: "1000000000",
@@ -122,18 +123,7 @@ class ThisScript extends TK.Script {
     } else if (typeof str === "number" || str.match(/^\d+$/)) {
       this.bank = parseInt(str);
     } else {
-      let unit = str[str.length - 1];
-      let amount = parseInt(str.substring(0, str.length - 1));
-
-      if (!(unit in CONVERSIONS)) {
-        throw new Error(
-          `Cannot find unit ${unit} in ${JSON.stringify(
-            Object.keys(CONVERSIONS)
-          )}`
-        );
-      }
-
-      this.bank = amount * CONVERSIONS[unit];
+      this.bank = convertStrToMoney(str);
     }
   }
 

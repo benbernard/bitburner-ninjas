@@ -9,10 +9,7 @@ class ThisScript extends TK.Script {
   async perform() {
     this.bank = new BankMessaging(this.ns);
 
-    let count = 0;
     while (true) {
-      count++;
-      if (count > 2) break;
       let wallet = await this.bank.walletInfo("servers");
       if (wallet.amount < 0) {
         await this.sleep(60000);
@@ -70,7 +67,7 @@ class ThisScript extends TK.Script {
 
       for (let i = 0; i < purchaseCount; i++) {
         this.tlog(`Buying server at ${tier}`);
-        let response = await this.bank.purchaseServer("hydra", tier);
+        let response = await this.bank.buyServer("hydra", tier);
         if (!response.purchased) {
           this.tlog(`Unknown problem buying server at ${tier}!`);
           break;
@@ -89,6 +86,7 @@ class ThisScript extends TK.Script {
       .map(name => new TK.Server(this.ns, name));
 
     let minPurchased = Math.min(...purchasedServers.map(s => s.ram()));
+    if (!minPurchased) minPurchased = 0;
     return targetTiers.filter(r => r >= minPurchased);
   }
 
@@ -108,7 +106,9 @@ class ThisScript extends TK.Script {
 
   targetTier(money) {
     let chosenTier = null;
-    for (let tier of this.buyableTiers()) {
+    let tiers = this.buyableTiers();
+    this.log(`Buyable Tiers: ${JSON.stringify(tiers)}`);
+    for (let tier of tiers) {
       let cost = this.tierCost(tier);
       if (cost < money) chosenTier = tier;
     }
