@@ -1,5 +1,5 @@
 import * as TK from "./tk.js";
-import {Gang, TASKS} from "./gangs.js";
+import {EquipmentSet, Gang, TASKS} from "./gangs.js";
 import {BankMessaging} from "./messaging.js";
 
 class ThisScript extends TK.Script {
@@ -8,6 +8,7 @@ class ThisScript extends TK.Script {
     this.bank = new BankMessaging(this.ns);
 
     while (true) {
+      this.es = new EquipmentSet(this.ns);
       this.log(`Starting Gang management loop`);
       if (this.gang.canRecruit()) {
         this.log(`Recruiting new members`);
@@ -16,8 +17,21 @@ class ThisScript extends TK.Script {
       }
 
       await this.buyEquipment();
+      await this.ascendMembers();
       await this.sleep(5000);
     }
+  }
+
+  async ascendMembers() {
+    let wallet = await this.bank.walletInfo("gang");
+    // Can I ascend
+
+    let members = this.gang.members();
+
+    // for (let member of members) {
+    //   if (!member.trained()) continue;
+    //   if (member.unownedNormalEquipment().length !== 0) continue;
+    // }
   }
 
   async buyEquipment() {
@@ -28,7 +42,7 @@ class ThisScript extends TK.Script {
     if (availableAmount < 0) return;
 
     for (let member of members) {
-      let unownedEquipment = member.unownedNormalEquipment();
+      let unownedEquipment = member.unownedNormalEquipment(this.es);
       for (let equipment of unownedEquipment) {
         if (equipment.cost < availableAmount) {
           this.log(

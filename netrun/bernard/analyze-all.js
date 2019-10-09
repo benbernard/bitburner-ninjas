@@ -12,9 +12,22 @@ class ThisScript extends TK.Script {
       await this.printTree(seen);
     } else if (mode === "sorted") {
       await this.sortedInfo(seen);
+    } else if (mode === "search") {
+      await this.serverSearch(this.args[0], seen);
     } else {
       await this.exit(`Mode not recognized: ${mode}`);
     }
+  }
+
+  async serverSearch(term, seen) {
+    let servers = [];
+    await this.s.traverse(server => servers.push(server), seen);
+
+    servers
+      .filter(s => s.name.startsWith(term))
+      .forEach(s => {
+        this.tlog(s.info(true, {asConnect: true}));
+      });
   }
 
   async sortedInfo(seen) {
@@ -42,7 +55,7 @@ class ThisScript extends TK.Script {
       servers = servers.filter(server => server.hackingLevel() <= hackLevel);
     }
 
-    servers.forEach(server => this.tlog(server.info(true)));
+    servers.forEach(server => this.tlog(server.info()));
   }
 
   async printTree(seen) {

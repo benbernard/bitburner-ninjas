@@ -14,7 +14,7 @@ export const TASKS = {
 };
 
 export class Gang extends GangNSObject {
-  constructor(ns) {
+  constructor(ns, es) {
     super(ns);
     this.refreshNames();
     this.taskNames = this.gang.getTaskNames();
@@ -27,6 +27,10 @@ export class Gang extends GangNSObject {
 
   members() {
     return this.memberNames.map(name => new Member(this.ns, name));
+  }
+
+  trainedMembers() {
+    return this.members().filter(m => m.trained());
   }
 
   canRecruit() {
@@ -58,6 +62,10 @@ export class Member extends GangNSObject {
     }
   }
 
+  trained() {
+    return this.info.defense >= 120 && this.info.strength >= 120;
+  }
+
   refreshInfo() {
     this.info = this.gang.getMemberInformation(this.name);
     return this.info;
@@ -75,8 +83,8 @@ export class Member extends GangNSObject {
     return this.gang.setMemberTask(this.name, task);
   }
 
-  unownedEquipment() {
-    let es = EquipmentSet.getInstance(this.ns);
+  unownedEquipment(es) {
+    if (!es) es = new EquipmentSet(this.ns);
 
     let ownedEquipment = new Set();
     this.info.equipment.forEach(name => ownedEquipment.add(name));
@@ -85,8 +93,8 @@ export class Member extends GangNSObject {
     return es.sorted().filter(equipment => !ownedEquipment.has(equipment.name));
   }
 
-  unownedNormalEquipment() {
-    return this.unownedEquipment().filter(equipment => !equipment.isHacking);
+  unownedNormalEquipment(es) {
+    return this.unownedEquipment(es).filter(equipment => !equipment.isHacking);
   }
 }
 
@@ -136,10 +144,8 @@ export class EquipmentSet extends NSObject {
     return this.infos().sort((a, b) => a.cost - b.cost);
   }
 
-  static getInstance(ns) {
-    if (!EquipmentSet.instance) EquipmentSet.instance = new EquipmentSet(ns);
-
-    return EquipmentSet.instance;
+  normalEquipment() {
+    return this.infos().filter(eq => !eq.isHacking);
   }
 }
 

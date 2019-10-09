@@ -17,14 +17,18 @@ class ThisScript extends TK.Script {
     let task = map[this.args[0]];
     if (!task) {
       this.tlog(`Gang Info:`);
-      this.gang.members().forEach(m => this.tlog(`  ${m.name} - ${m.task}`));
+      this.gang
+        .members()
+        .forEach(m =>
+          this.tlog(`  ${m.name} - ${m.task} - trained: ${m.trained()}`)
+        );
+
+      this.tlog(JSON.stringify(this.gang.members()[0].info, null, 2));
       return;
     }
 
-    let prompt = await this.ns.prompt(`Switch all gang members to ${task}?`);
-    if (prompt) {
-      this.gang.members().forEach(m => m.setTask(task));
-    }
+    this.tlog(`Switching all gang members to ${task}`);
+    this.gang.trainedMembers().forEach(m => m.setTask(task));
   }
 }
 export let main = ThisScript.runner();

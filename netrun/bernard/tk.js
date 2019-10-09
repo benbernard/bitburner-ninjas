@@ -199,7 +199,7 @@ export class Server extends NSObject {
     }
   }
 
-  info(includePath = false) {
+  info(includePath = false, options = {}) {
     let parts = [
       `${this.name}`,
       "-",
@@ -210,13 +210,18 @@ export class Server extends NSObject {
       `Ram: ${this.rFormat(this.availableRam())} / ${this.rFormat(this.ram())}`,
     ];
 
-    if (includePath) parts.push(`Path: ${this.path()}`);
+    if (includePath) parts.push(`Path: ${this.path(options)}`);
     return parts.join(" ");
   }
 
-  path() {
-    if (!this.parent) return this.name;
-    return `${this.parent.path()} -> ${this.name}`;
+  path(options) {
+    let parentPath = "";
+    if (this.parent) parentPath = this.parent.path(options);
+    if (options.asConnect) {
+      return `${parentPath}; connect ${this.name}`;
+    } else {
+      return `${parentPath} -> ${this.name}`;
+    }
   }
 
   scan() {

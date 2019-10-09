@@ -85,7 +85,7 @@ class ThisScript extends TK.Script {
       .getPurchasedServers()
       .map(name => new TK.Server(this.ns, name));
 
-    let minPurchased = Math.min(...purchasedServers.map(s => s.ram()));
+    let minPurchased = Math.max(...purchasedServers.map(s => s.ram()));
     if (!minPurchased) minPurchased = 0;
     return targetTiers.filter(r => r >= minPurchased);
   }

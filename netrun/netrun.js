@@ -22,7 +22,7 @@ export async function main(ns) {
     NS.tprint("Must run from home server");
   }
 
-  let argCommand = NS.args.shift();
+  let argCommand = NS.args[0];
   let command = argCommand;
 
   if (command === "forceReload") {
@@ -33,6 +33,9 @@ export async function main(ns) {
 
   await updateSourceFiles();
 
+  // After we may have reloaded, now we can remove command arg from NS.args
+  NS.args.shift();
+
   if (!command.match(/\.js$/)) command = `${command}.js`;
 
   if (!NS.fileExists(command)) {
@@ -42,7 +45,23 @@ export async function main(ns) {
 
   let threads = pullArgWithValue(/--threads?/, NS.args) || 1;
 
-  await NS.run(command, threads, ...NS.args);
+  let pid = await NS.run(command, threads, ...NS.args);
+  if (pid === 0) {
+    NS.tprint(`Could not run "${command} ${NS.args.join(" ")}"!`);
+    let ramNeeded = NS.getScriptRam(command);
+    let ramInfo = NS.getServerRam("home");
+    if (ramNeeded > ramInfo[1]) {
+      NS.tprint(
+        `Script ${command} needs ${rFormat(ramNeeded)}, we have ${rFormat(
+          ramInfo[1]
+        )}`
+      );
+    }
+  }
+}
+
+function rFormat(ram) {
+  return NS.nFormat(ram * (1024 * 1024 * 1024), "0ib");
 }
 
 // Force all files except this one to re-load from server
@@ -97,7 +116,8 @@ async function updateFiles() {
   }
 
   for (let file of Object.keys(contents)) {
-    await updateFile(file, contents[file]);
+    let changedFile = await updateFile(file, contents[file]);
+    if (file === "netrun.js") hasChanges = changedFile;
   }
 
   // Make sure the reload script gets updated as well
@@ -123,12 +143,9 @@ async function updateSourceFiles() {
   let hasChange = await updateFiles();
   await checkBaseScript();
 
-  // This was too flaky, instead run on ygg
   if (hasChange) {
-    // This stuff is unfortunately flaky
-    NS.tprint(`Auto Reloading`);
+    NS.tprint(`Auto Reloading netrun.js`);
     await NS.run(RELOAD_SCRIPT, 1, ...NS.args);
-    // await NS.tail(RELOAD_SCRIPT, ...NS.args);
     await NS.exit();
   }
 }
