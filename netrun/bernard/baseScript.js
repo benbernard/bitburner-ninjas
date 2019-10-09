@@ -20,6 +20,17 @@ export class NSObject {
     }
   }
 
+  uuid() {
+    return (
+      Math.random()
+        .toString(36)
+        .substring(2, 15) +
+      Math.random()
+        .toString(36)
+        .substring(2, 15)
+    );
+  }
+
   tlog(...msgs) {
     this.ns.tprint(msgs.join(" "));
   }

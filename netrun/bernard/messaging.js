@@ -18,17 +18,6 @@ export class Messaging extends NSObject {
     return this.ns.getPortHandle(this.responsePort);
   }
 
-  uuid() {
-    return (
-      Math.random()
-        .toString(36)
-        .substring(2, 15) +
-      Math.random()
-        .toString(36)
-        .substring(2, 15)
-    );
-  }
-
   createMessage(data, metadata = {}) {
     return {
       uuid: this.uuid(),
@@ -114,9 +103,29 @@ export class BankMessaging extends Messaging {
       amount,
     });
   }
+
+  // Pairs of wallet name and amount to set to
+  setBalances(pairs) {
+    return this.sendAndWait({
+      type: BankMessaging.SET_BALANCES,
+      sets: pairs,
+    });
+  }
+
+  allWallets() {
+    return this.sendAndWait({type: BankMessaging.ALL_WALLETS});
+  }
+
+  clear() {
+    return this.sendAndWait({type: BankMessaging.CLEAR});
+  }
 }
 
+// Message types
 BankMessaging.WALLET_INFO = "wallet_info";
 BankMessaging.PURCHASE_SERVER = "purchase_server";
 BankMessaging.PURCHASE_EQUIPMENT = "purchase_equipment";
 BankMessaging.DEPOSIT = "deposit";
+BankMessaging.SET_BALANCES = "set_balances";
+BankMessaging.ALL_WALLETS = "all_wallets";
+BankMessaging.CLEAR = "clear";

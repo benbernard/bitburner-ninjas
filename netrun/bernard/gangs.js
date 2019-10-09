@@ -34,7 +34,7 @@ export class Gang extends GangNSObject {
   }
 
   recruit() {
-    let name = `Member-${this.memberCount()}`;
+    let name = `Member-${this.uuid()}`;
     let result = this.gang.recruitMember(name);
     if (!result) throw new Error(`Could not recruit ${name}`);
 

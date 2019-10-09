@@ -86,6 +86,29 @@ class ThisScript extends TK.Script {
       let wallet = this.wallet(req.data.wallet);
       let amount = req.data.amount;
       this.deposit(wallet, amount, req);
+    } else if (type === BankMessaging.SET_BALANCES) {
+      let amountSum = this.walletTotal();
+      for (let [name, amount] of req.data.sets) {
+        let wallet = this.wallet(name);
+        amountSum = amountSum - wallet.amount + amount;
+      }
+
+      let success = false;
+      if (amountSum < this.actualMoney()) {
+        success = true;
+
+        for (let [name, amount] of req.data.sets) {
+          let wallet = this.wallet(name);
+          wallet.amount = amount;
+        }
+      }
+
+      this.messaging.sendResponse(req, {success});
+    } else if (type === BankMessaging.ALL_WALLETS) {
+      return this.messaging.sendResponse(req, {wallets: this.wallets});
+    } else if (type === BankMessaging.CLEAR) {
+      this.initializeState();
+      this.messaging.sendResponse(req, {success: true});
     } else {
       this.tlog(`Bank received unknown message type: ${type}`);
     }
@@ -102,8 +125,12 @@ class ThisScript extends TK.Script {
     this.messaging.sendResponse(req, {success: true});
   }
 
+  walletTotal() {
+    return this.wallets.reduce((sum, e) => e.amount + sum, 0);
+  }
+
   unallocatedMoney() {
-    let walletTotal = this.wallets.reduce((sum, e) => e.amount + sum, 0);
+    let walletTotal = this.walletTotal();
     return this.actualMoney() - walletTotal;
   }
 
