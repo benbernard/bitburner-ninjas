@@ -63,12 +63,23 @@ export class Member extends GangNSObject {
   }
 
   trained() {
-    return this.info.defense >= 120 && this.info.strength >= 120;
+    if (this.fullyAscended()) {
+      return this.info.defense >= 500 && this.info.strength >= 500;
+    } else {
+      return this.info.defense >= 120 && this.info.strength >= 120;
+    }
   }
 
   refreshInfo() {
     this.info = this.gang.getMemberInformation(this.name);
     return this.info;
+  }
+
+  ascend() {
+    let ascensionData = this.gang.ascendMember(this.name);
+    this.refreshInfo();
+
+    return ascensionData;
   }
 
   get task() {
@@ -93,8 +104,28 @@ export class Member extends GangNSObject {
     return es.sorted().filter(equipment => !ownedEquipment.has(equipment.name));
   }
 
-  unownedNormalEquipment(es) {
-    return this.unownedEquipment(es).filter(equipment => !equipment.isHacking);
+  fullyAscended() {
+    return this.info.strengthAscensionMult >= 5;
+  }
+
+  ascensionsNeeded() {
+    let multNeeded = 5 - this.info.strengthAscensionMult;
+    return Math.ceil(multNeeded / 0.37);
+  }
+
+  unownedNormalEquipment(es, {includeAugments = true} = {}) {
+    return this.unownedEquipment(es).filter(eq => {
+      if (eq.isHacking) return false;
+      if (!includeAugments && eq.type === EquipmentSet.TYPES.AUGMENT)
+        return false;
+      return true;
+    });
+  }
+
+  logInfo() {
+    return `${this.name} - ${
+      this.task
+    }.  Trained: ${this.trained()} Ascended: ${this.fullyAscended()} Ascensions Needed: ${this.ascensionsNeeded()}`;
   }
 }
 
@@ -144,8 +175,13 @@ export class EquipmentSet extends NSObject {
     return this.infos().sort((a, b) => a.cost - b.cost);
   }
 
-  normalEquipment() {
-    return this.infos().filter(eq => !eq.isHacking);
+  normalEquipment({includeAugments = true} = {}) {
+    return this.infos().filter(eq => {
+      if (eq.isHacking) return false;
+      if (!includeAugments && eq.type === EquipmentSet.TYPES.AUGMENT)
+        return false;
+      return true;
+    });
   }
 }
 
@@ -160,5 +196,5 @@ EquipmentSet.TYPES = {
   ARMOR: "Armor",
   VEHICLE: "Vehicle",
   ROOTKIT: "Rootkit",
-  AUGMENTATION: "Augmentation",
+  AUGMENT: "Augmentation",
 };

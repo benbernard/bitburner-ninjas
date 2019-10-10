@@ -12,18 +12,14 @@ class ThisScript extends TK.Script {
   async perform() {
     this.gang = new Gang(this.ns);
 
-    this.tlog(this.ns.gang.getTaskNames());
+    // this.tlog(this.ns.gang.getTaskNames());
 
     let task = map[this.args[0]];
     if (!task) {
       this.tlog(`Gang Info:`);
-      this.gang
-        .members()
-        .forEach(m =>
-          this.tlog(`  ${m.name} - ${m.task} - trained: ${m.trained()}`)
-        );
+      this.gang.members().forEach(m => this.tlog(`  ${m.logInfo()}`));
 
-      this.tlog(JSON.stringify(this.gang.members()[0].info, null, 2));
+      // this.tlog(JSON.stringify(this.gang.members()[0].info, null, 2));
       return;
     }
 
