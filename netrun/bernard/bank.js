@@ -1,10 +1,9 @@
-import * as TK from "./tk.js";
+import {BaseScript, NSObject} from "./baseScript.js";
 import {BankMessaging} from "./messaging.js";
-import {NSObject} from "./baseScript.js";
 
 const BANK_INFO_FILE = "bank-info.txt";
 
-export class BankScript extends TK.Script {
+export class BankScript extends BaseScript {
   constructor(ns, doEventLoop = true) {
     super(ns);
     this.doEventLoop = doEventLoop;
@@ -300,9 +299,9 @@ export class BankScript extends TK.Script {
       wallets: {},
     };
 
-    this.addWallet({name: "gang", portion: 0.3});
+    // this.addWallet({name: "gang", portion: 0.3});
     this.addWallet({name: "servers", portion: 0.5});
-    this.addWallet({name: "rest", portion: 0.2, priority: 6});
+    this.addWallet({name: "rest", portion: 0.5, priority: 6});
 
     this.saveState();
   }

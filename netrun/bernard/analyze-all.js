@@ -59,8 +59,8 @@ class ThisScript extends TK.Script {
   }
 
   async printTree(seen) {
-    let printer = (server, indent) => {
-      this.tlog(`${indent}${server.info()}`);
+    let printer = (server, level) => {
+      this.tlog(`${" ".repeat(level)}${server.info()}`);
     };
 
     await this.s.traverse(printer, seen);

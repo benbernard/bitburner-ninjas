@@ -73,6 +73,7 @@ export class NSObject {
   }
 
   cFormat(money) {
+    if (money === 0) return "$0";
     return this.ns.nFormat(money, "$0.0 a");
   }
 

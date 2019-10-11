@@ -1,11 +1,11 @@
-import * as TK from "./tk.js";
 import {BankMessaging} from "./messaging.js";
+import {BaseScript} from "./baseScript.js";
 
 const MAX_MONEY_FILE = "max-money-seen.txt";
 
 let targetTiers = [128, 1024, 16384, 262144, 1048576];
 
-class ThisScript extends TK.Script {
+class ThisScript extends BaseScript {
   async perform() {
     this.bank = new BankMessaging(this.ns);
 
@@ -22,7 +22,6 @@ class ThisScript extends TK.Script {
       let tier = this.targetTier(usableMoney);
 
       this.log(`Selected Tier: ${tier}`);
-      let singleCost = this.tierCost(tier);
       if (!tier) {
         // Nothing to do
         await this.sleep(60000); // 10 seconds
@@ -30,6 +29,7 @@ class ThisScript extends TK.Script {
       }
 
       // How many to buy
+      let singleCost = this.tierCost(tier);
       let purchaseCount = Math.min(
         Math.floor(usableMoney / singleCost),
         this.ns.getPurchasedServerLimit()
@@ -81,11 +81,11 @@ class ThisScript extends TK.Script {
   }
 
   buyableTiers() {
-    let purchasedServers = this.ns
-      .getPurchasedServers()
-      .map(name => new TK.Server(this.ns, name));
+    let purchasedServers = this.ns.getPurchasedServers();
 
-    let minPurchased = Math.max(...purchasedServers.map(s => s.ram()));
+    let minPurchased = Math.max(
+      ...purchasedServers.map(s => this.ns.getServerRam(s)[0])
+    );
     if (!minPurchased) minPurchased = 0;
     return targetTiers.filter(r => r >= minPurchased);
   }

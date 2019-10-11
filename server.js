@@ -32,6 +32,8 @@ const requestHandler = (req, res) => {
 
   if (req.url === "/files") {
     res.end(JSON.stringify(gatherFiles()));
+  } else if (req.url === "/shouldStop") {
+    res.end("No");
   } else {
     res.end(slurpFile(`${dirname}/${LOADER}`));
   }

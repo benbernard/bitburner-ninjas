@@ -12,6 +12,7 @@ let LIBRARY_FILES = [
   "messaging.js",
   "utils.js",
   "bank.js",
+  "singularity.js",
 ];
 
 let NS;

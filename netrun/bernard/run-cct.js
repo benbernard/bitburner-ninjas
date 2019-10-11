@@ -1,20 +1,32 @@
-import * as TK from "./tk.js";
+import {BaseScript, NSObject} from "./baseScript.js";
 import Contract from "./contracts.js";
+import {allServers} from "./traverse.js";
 import {purchasedSet} from "./purchased.js";
 
-class ThisScript extends TK.Script {
+class ThisScript extends BaseScript {
   async perform() {
-    let submit = this.pullFirstArg() === "submit" ? true : false;
-    let servers = await this.currentServer().reachableServers(
-      purchasedSet(this.ns)
-    );
+    this.submit = this.pullFirstArg() === "nosubmit" ? false : true;
+    if (!this.submit) return this.runContracts();
+
+    while (true) {
+      await this.runContracts();
+      await this.ns.sleep(10000);
+    }
+  }
+
+  ls(server) {
+    return this.ns.ls(server);
+  }
+
+  async runContracts() {
+    let servers = allServers("home", this.ns, purchasedSet(this.ns));
 
     for (let server of servers) {
-      let files = server.ls().filter(name => name.endsWith(".cct"));
+      let files = this.ls(server).filter(name => name.endsWith(".cct"));
       if (files.length > 0) {
         let contract = new Contract(files[0], server);
         this.log(
-          `Found contract: ${contract.file} on ${server.name}, Tries: ${contract.triesLeft}`
+          `Found contract: ${contract.file} on ${server}, Tries: ${contract.triesLeft}`
         );
         this.log(`Type: "${contract.type}"`);
         this.log(`Description: ${contract.description}`);
@@ -39,7 +51,7 @@ class ThisScript extends TK.Script {
         }
 
         if (contract.hasSolver()) {
-          let success = await contract.solve(submit);
+          let success = await contract.solve(this.submit);
           if (!success) {
             await this.exit(`Stopping!`);
           }

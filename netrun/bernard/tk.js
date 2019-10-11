@@ -1,4 +1,5 @@
 import {BaseScript, NSObject} from "./baseScript.js";
+import traverse from "./traverse.js";
 
 export let _ = {
   isFunction(val) {
@@ -139,15 +140,6 @@ export class Server extends NSObject {
     return this.ns.hasRootAccess(this.name);
   }
 
-  async reachableServers(seen = {}, includeSelf = false) {
-    let servers = [];
-
-    if (includeSelf) servers.push(this);
-
-    await this.traverse(server => servers.push(server), seen);
-    return servers;
-  }
-
   fileExists(file) {
     return this.ns.fileExists(file, this.name);
   }
@@ -186,17 +178,17 @@ export class Server extends NSObject {
     await this.ns.nuke(this.name);
   }
 
-  async traverse(fn, seen = {}, indent = "") {
-    seen[this.name] = 1;
-    let children = await this.scan();
-    children = children.filter(name => !seen[name]);
+  async reachableServers(seen = {}, includeSelf = false) {
+    let servers = [];
 
-    for (let child of children) {
-      let childServer = new Server(this.ns, child, this);
-      await fn(childServer, indent);
-      seen[child] = 1;
-      await childServer.traverse(fn, seen, `${indent}  `);
-    }
+    if (includeSelf) servers.push(this);
+    await this.traverse(server => servers.push(server), seen);
+    return servers;
+  }
+
+  async traverse(fn, seen = {}, indent = "") {
+    let wrapper = (s, level) => fn(new Server(this.ns, s), level);
+    return traverse(this.name, this.ns, wrapper, seen, indent);
   }
 
   info(includePath = false, options = {}) {
@@ -204,17 +196,17 @@ export class Server extends NSObject {
       `${this.name}`,
       "-",
       `Money: ${this.cFormat(this.money())} / ${this.cFormat(this.maxMoney())}`,
-      `Hack: ${this.hackingLevel()}`,
-      `Root: ${this.hasRoot() ? "YES" : "NO"}`,
-      `Security: ${Math.ceil(this.security())} / ${this.minSecurity()}`,
-      `Ram: ${this.rFormat(this.availableRam())} / ${this.rFormat(this.ram())}`,
+      `H: ${this.hackingLevel()}`,
+      this.hasRoot() ? "Rooted" : "No Root",
+      `S: ${Math.ceil(this.security())} / ${this.minSecurity()}`,
+      `R: ${this.rFormat(this.availableRam())} / ${this.rFormat(this.ram())}`,
     ];
 
     if (includePath) parts.push(`Path: ${this.path(options)}`);
     return parts.join(" ");
   }
 
-  path(options) {
+  path(options = {}) {
     let parentPath = "";
     if (this.parent) parentPath = this.parent.path(options);
     if (options.asConnect) {

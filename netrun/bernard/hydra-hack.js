@@ -7,8 +7,6 @@ let TASKS = {
   HACK: "hack",
 };
 
-let HOME_TENDERS = ["scheduled-cct.js", "maintain-servers.js"];
-
 let STATUS_FILE = "hydra-status.txt";
 let EXTRA_PROCESS_CONFIG = ["looped-weaken.js", ["joesguns", "0"]];
 
@@ -38,8 +36,6 @@ class ThisScript extends TK.Script {
       "getHackingLevel",
       "scp"
     );
-
-    await this.setupHome();
 
     while (true) {
       try {
@@ -124,14 +120,6 @@ class ThisScript extends TK.Script {
     processList.push(process);
   }
 
-  async setupHome() {
-    for (let script of HOME_TENDERS) {
-      if (!this.ns.scriptRunning(script, "home")) {
-        await this.ns.exec(script, "home", 1);
-      }
-    }
-  }
-
   async updateStatus() {
     let status = {};
     for (let name of Object.keys(this.activeAttacks)) {
@@ -166,7 +154,8 @@ class ThisScript extends TK.Script {
     }
 
     let home = servers.find(s => s.name === "home");
-    home.maxRamUsedPercentage = 0.75;
+    // home.maxRamUsedPercentage = 0.75;
+    home.maxRamUsedPercentage = 0;
 
     return servers.sort((a, b) => b.availableRam() - a.availableRam());
   }

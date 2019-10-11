@@ -3,10 +3,10 @@ import {NSObject} from "./baseScript.js";
 import validMath from "./validMath.js";
 
 export default class Contract extends NSObject {
-  constructor(file, server) {
+  constructor(file, serverName) {
     super(server.ns);
     this.file = file;
-    this.server = server;
+    this.serverName = serverName;
   }
 
   get cc() {
@@ -14,23 +14,23 @@ export default class Contract extends NSObject {
   }
 
   get type() {
-    return this.cc.getContractType(this.file, this.server.name);
+    return this.cc.getContractType(this.file, this.serverName);
   }
 
   get description() {
-    return this.cc.getDescription(this.file, this.server.name);
+    return this.cc.getDescription(this.file, this.serverName);
   }
 
   get data() {
-    return this.cc.getData(this.file, this.server.name);
+    return this.cc.getData(this.file, this.serverName);
   }
 
   get triesLeft() {
-    return this.cc.getNumTriesRemaining(this.file, this.server.name);
+    return this.cc.getNumTriesRemaining(this.file, this.serverName);
   }
 
   attempt(answer) {
-    let reward = this.cc.attempt(answer, this.file, this.server.name, {
+    let reward = this.cc.attempt(answer, this.file, this.serverName, {
       returnReward: true,
     });
 
