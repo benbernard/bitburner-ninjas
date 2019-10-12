@@ -1,5 +1,5 @@
 import * as TK from "./tk.js";
-import {CITIES, COMPANIES, Player, STAT_MAP} from "./singularity.js";
+import {CITIES, COMPANIES, FACTIONS, Player, STAT_MAP} from "./singularity.js";
 import {NSObject} from "./baseScript.js";
 
 class ThisScript extends TK.Script {
@@ -241,41 +241,6 @@ class CompanyFavorAction extends CompanyAction {
 
 export let main = ThisScript.runner();
 
-const validFactions = new Set([
-  "Illuminati",
-  "Daedalus",
-  "The Covenant",
-  "ECorp",
-  "MegaCorp",
-  "Bachman & Associates",
-  "Blade Industries",
-  "NWO",
-  "Clarke Incorporated",
-  "OmniTek Incorporated",
-  "Four Sigma",
-  "KuaiGong International",
-  "Fulcrum Secret Technologies",
-  "BitRunners",
-  "The Black Hand",
-  "NiteSec",
-  "Aevum",
-  "Chongqing",
-  "Ishima",
-  "New Tokyo",
-  "Sector-12",
-  "Volhaven",
-  "Speakers for the Dead",
-  "The Dark Army",
-  "The Syndicate",
-  "Silhouette",
-  "Tetrads",
-  "Slum Snakes",
-  "Netburners",
-  "Tian Di Hui",
-  "CyberSec",
-  "Bladeburners",
-]);
-
 let validStats = new Set(Object.keys(STAT_MAP));
 
 function matcher(term, set) {
@@ -296,7 +261,7 @@ function canonicalCompany(term) {
 }
 
 function canonicalFaction(term) {
-  return matcher(term, validFactions);
+  return matcher(term, FACTIONS);
 }
 
 let ACTION_TYPES = {

@@ -7,23 +7,22 @@ class ThisScript extends TK.Script {
     await this.player.initPlayerLoop();
 
     await this.upgradeHomeRam();
-    await this.player.trainTo("str", 100);
-    await this.player.trainTo("def", 100);
+    await this.player.trainTo("hack", 50);
+    await this.player.trainTo("str", 30);
+    await this.player.trainTo("def", 30);
 
     while (true) {
       await this.upgradeHomeRam();
-
-      await this.player.commitCrime("homicide");
-      await this.sleep(100);
+      await this.player.commitCrime("mug");
     }
   }
 
-  upgradeHomeRam() {
+  async upgradeHomeRam() {
     if (this.home.ram() < 1024) {
       let cost = this.ns.getUpgradeHomeRamCost();
       while (this.home.money() > cost && this.home.ram() < 1024) {
         this.tlog(`Upgrading home ram`);
-        this.ns.upgradeHomeRam();
+        await this.ns.upgradeHomeRam();
       }
     }
   }

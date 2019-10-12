@@ -119,6 +119,41 @@ export const COMPANIES = {
   "ZB Institute of Technology": "Volhaven",
 };
 
+export const FACTIONS = new Set([
+  "Illuminati",
+  "Daedalus",
+  "The Covenant",
+  "ECorp",
+  "MegaCorp",
+  "Bachman & Associates",
+  "Blade Industries",
+  "NWO",
+  "Clarke Incorporated",
+  "OmniTek Incorporated",
+  "Four Sigma",
+  "KuaiGong International",
+  "Fulcrum Secret Technologies",
+  "BitRunners",
+  "The Black Hand",
+  "NiteSec",
+  "Aevum",
+  "Chongqing",
+  "Ishima",
+  "New Tokyo",
+  "Sector-12",
+  "Volhaven",
+  "Speakers for the Dead",
+  "The Dark Army",
+  "The Syndicate",
+  "Silhouette",
+  "Tetrads",
+  "Slum Snakes",
+  "Netburners",
+  "Tian Di Hui",
+  "CyberSec",
+  "Bladeburners",
+]);
+
 export class Player extends NSObject {
   isBusy() {
     return this.ns.isBusy();
@@ -202,7 +237,7 @@ export class Player extends NSObject {
     if (this.getStat(stat) >= target) return;
 
     this.tlog(`Training ${stat} to ${target}`);
-    this.train(stat);
+    await this.train(stat);
     while (this.getStat(stat) < target) {
       await this.sleep(10000);
       await this.checkStop();

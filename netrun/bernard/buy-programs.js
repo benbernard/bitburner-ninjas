@@ -10,7 +10,7 @@ let programs = [
 
 class ThisScript extends BaseScript {
   async perform() {
-    while (this.allProgramsBought({log: false})) {
+    while (!this.allProgramsBought({log: false})) {
       let info = this.ns.getCharacterInformation();
       if (!info.tor) {
         this.ns.purchaseTor();
