@@ -17,10 +17,23 @@ export const CRIMES = [
   "heist",
 ];
 
-const GYM_NAME = "Powerhouse Gym";
-const GYM_CITY = "Sector-12";
+const SECTOR12 = "Sector-12";
+const VOLHAVEN = "Volhaven";
 
-const statMap = {
+const CITY_UNIVERSITY = {
+  [SECTOR12]: "Rothman University",
+  [VOLHAVEN]: "ZB Institute Of Technology",
+};
+
+const UNIVERSITY_COURSE = {
+  hacking: "Algorithms",
+  charisma: "Leadership",
+};
+
+const GYM_NAME = "Powerhouse Gym";
+const GYM_CITY = SECTOR12;
+
+export const STAT_MAP = {
   str: "strength",
   dex: "dexerity",
   agi: "agility",
@@ -30,6 +43,22 @@ const statMap = {
   dexterity: "dexterity",
   agility: "agility",
   defense: "defense",
+
+  hacking: "hacking",
+  hack: "hacking",
+
+  chr: "charisma",
+  charisma: "charisma",
+};
+
+const TRAINING_TYPES = {
+  strength: "workout",
+  dexterity: "workout",
+  agility: "workout",
+  defense: "workout",
+
+  hacking: "university",
+  charisma: "university",
 };
 
 export class Player extends NSObject {
@@ -45,10 +74,18 @@ export class Player extends NSObject {
     return this.ns.getCharacterInformation();
   }
 
-  async workout(type) {
-    if (this.info().city !== GYM_CITY) {
+  get city() {
+    return this.info().city;
+  }
+
+  async travel(city) {
+    if (this.city !== GYM_CITY) {
       await this.ns.travelToCity(GYM_CITY);
     }
+  }
+
+  async workout(type) {
+    await this.travel(GYM_CITY);
 
     let success = await this.ns.gymWorkout(GYM_NAME, type);
     if (!success)
@@ -69,15 +106,38 @@ export class Player extends NSObject {
   }
 
   getStat(stat) {
-    return this.stats()[statMap[stat]];
+    return this.stats()[STAT_MAP[stat]];
   }
 
-  train(stat) {
-    if (!(stat in statMap)) {
+  train(statTerm) {
+    if (!(statTerm in STAT_MAP)) {
       throw new Error(`Unrecognized stat: ${stat}`);
     }
 
-    return this.workout(statMap[stat]);
+    let stat = STAT_MAP[stat];
+
+    let type = TRAINING_TYPES[stat];
+    if (type === "workout") {
+      return this.workout(stat);
+    } else if (type === "university") {
+      return this.university(stat);
+    } else {
+      throw new Error(`Untrainable Stat: ${stat}`);
+    }
+  }
+
+  university(stat) {
+    if (["hacking", "charisma"].indexOf(stat) === -1)
+      throw new Error(`Cannot university train ${stat}`);
+
+    if (this.city !== SECTOR12) {
+      this.travel("Volhaven");
+    }
+
+    let university = CITY_UNIVERSITY[this.city];
+    let course = UNIVERSITY_COURSE[stat];
+
+    return this.ns.universityCourse(university, course);
   }
 
   async trainTo(stat, target) {
