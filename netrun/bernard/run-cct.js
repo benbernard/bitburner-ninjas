@@ -5,7 +5,7 @@ import {purchasedSet} from "./purchased.js";
 
 class ThisScript extends BaseScript {
   async perform() {
-    this.submit = this.pullFirstArg() === "nosubmit" ? false : true;
+    this.submit = this.pullFirstArg() === "submit" ? true : false;
     if (!this.submit) return this.runContracts();
 
     while (true) {
@@ -19,21 +19,23 @@ class ThisScript extends BaseScript {
   }
 
   async runContracts() {
-    let servers = allServers("home", this.ns, purchasedSet(this.ns));
+    let servers = await allServers("home", this.ns, purchasedSet(this.ns));
 
     for (let server of servers) {
       let files = this.ls(server).filter(name => name.endsWith(".cct"));
       if (files.length > 0) {
-        let contract = new Contract(files[0], server);
+        let contract = new Contract(this.ns, files[0], server);
+
         this.log(
           `Found contract: ${contract.file} on ${server}, Tries: ${contract.triesLeft}`
         );
+
         this.log(`Type: "${contract.type}"`);
         this.log(`Description: ${contract.description}`);
         this.log(`Data: ${JSON.stringify(contract.data)}`);
 
         // Allow text to print
-        await this.ns.sleep(100);
+        await this.sleep(100);
 
         let shouldSolve = false;
         if (
@@ -53,10 +55,11 @@ class ThisScript extends BaseScript {
         if (contract.hasSolver()) {
           let success = await contract.solve(this.submit);
           if (!success) {
+            this.tlog(`Bad solve for contract: ${contract.file} on ${server}`);
             await this.exit(`Stopping!`);
           }
         } else {
-          this.log(`No solver for ${contract.type}`);
+          this.tlog(`No solver for ${contract.type}`);
         }
       }
     }

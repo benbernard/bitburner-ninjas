@@ -3,8 +3,8 @@ import {NSObject} from "./baseScript.js";
 import validMath from "./validMath.js";
 
 export default class Contract extends NSObject {
-  constructor(file, serverName) {
-    super(server.ns);
+  constructor(ns, file, serverName) {
+    super(ns);
     this.file = file;
     this.serverName = serverName;
   }
