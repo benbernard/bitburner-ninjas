@@ -1,6 +1,7 @@
 import {BaseScript, NSObject} from "./baseScript.js";
 
 const STOP_FILE = "stop_file.txt";
+const TOGGLE_FILE = "toggle_file.txt";
 
 export const CRIMES = [
   "shoplift",
@@ -59,6 +60,63 @@ const TRAINING_TYPES = {
 
   hacking: "university",
   charisma: "university",
+};
+
+export const CITIES = new Set([
+  "Aevum",
+  "Sector-12",
+  "New Tokyo",
+  "Chongqing",
+  "Ishima",
+  "Volhaven",
+]);
+
+export const COMPANIES = {
+  AeroCorp: "Aevum",
+  "Bachman & Associates": "Aevum",
+  "Clarke Incorporated": "Aevum",
+  ECorp: "Aevum",
+  "Fulcrum Technologies": "Aevum",
+  "Galactic Cybersystems": "Aevum",
+  "NetLink Technologies": "Aevum",
+  "Aevum Police Headquarters": "Aevum",
+  "Rho Construction": "Aevum",
+  "Watchdog Security": "Aevum",
+
+  "KuaiGong International": "Chongqing",
+  "Solaris Space Systems": "Chongqing",
+
+  "Alpha Enterprises": "Sector-12",
+  "Blade Industries": "Sector-12",
+  "Central Intelligence Agency": "Sector-12",
+  "Carmichael Security": "Sector-12",
+  "Sector-12 City Hall": "Sector-12",
+  DeltaOne: "Sector-12",
+  FoodNStuff: "Sector-12",
+  "Four Sigma": "Sector-12",
+  "Icarus Microsystems": "Sector-12",
+  "Joe's Guns": "Sector-12",
+  MegaCorp: "Sector-12",
+  "National Security Agency": "Sector-12",
+  "Universal Energy": "Sector-12",
+
+  DefComm: "New Tokyo",
+  "Global Pharmaceuticals": "New Tokyo",
+  "Noodle Bar": "New Tokyo",
+  VitaLife: "New Tokyo",
+
+  "Nova Medical": "Ishima",
+  "Omega Software": "Ishima",
+  "Storm Technologies": "Ishima",
+
+  CompuTek: "Volhaven",
+  "Helios Labs": "Volhaven",
+  LexoCorp: "Volhaven",
+  NWO: "Volhaven",
+  "OmniTek Incorporated": "Volhaven",
+  "Omnia Cybersystems": "Volhaven",
+  "SysCore Securities": "Volhaven",
+  "ZB Institute of Technology": "Volhaven",
 };
 
 export class Player extends NSObject {
@@ -144,12 +202,13 @@ export class Player extends NSObject {
     if (this.getStat(stat) >= target) return;
 
     this.tlog(`Training ${stat} to ${target}`);
+    this.train(stat);
     while (this.getStat(stat) < target) {
-      this.train(stat);
-
       await this.sleep(10000);
       await this.checkStop();
       await this.stop();
+
+      this.train(stat);
     }
 
     this.tlog(`Done training ${stat} to ${target}`);
@@ -167,6 +226,10 @@ export class Player extends NSObject {
 
   stop() {
     return this.ns.stopAction();
+  }
+
+  async initPlayerLoop() {
+    await this.ns.wget("http://localhost:3000/toggleStop/no", TOGGLE_FILE);
   }
 
   async checkStop() {

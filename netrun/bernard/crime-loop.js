@@ -4,6 +4,7 @@ import {Player} from "./singularity.js";
 class ThisScript extends TK.Script {
   async perform() {
     this.player = new Player(this.ns);
+    await this.player.initPlayerLoop();
 
     await this.upgradeHomeRam();
     await this.player.trainTo("str", 100);

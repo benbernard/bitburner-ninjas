@@ -1,10 +1,15 @@
 import * as TK from "./tk.js";
-import {Player, STAT_MAP} from "./singularity.js";
+import {CITIES, COMPANIES, Player, STAT_MAP} from "./singularity.js";
 import {NSObject} from "./baseScript.js";
 
 class ThisScript extends TK.Script {
+  get player() {
+    return new Player(this.ns);
+  }
+
   async perform() {
     let actions = this.makeActions(this.args);
+    await this.player.initPlayerLoop();
 
     let count = 1;
     for (let action of actions) {
@@ -29,30 +34,35 @@ class ThisScript extends TK.Script {
     }
   }
 
+  // Examples:
+  // s:str:150
+  // f:NWO:rep:25000
+  // f:NWO:favor:150
+  // c:NWO:rep:2500
+  // crime
   makeActions(actions) {
     return actions.map(spec => {
       let [type, ...args] = spec.split(":");
 
-      let faction = canonicalFaction(type);
-      if (validStats.has(type)) {
-        return new StatTrain(this.ns, type, ...args);
-      } else if (faction) {
-        let [goalType, target] = args;
-        if (goalType === "rep") {
-          return new FactionRepAction(this.ns, faction, target);
-        } else if (goalType === "favor") {
-          return new FactionFavorAction(this.ns, faction, target);
-        } else {
-          throw new Error(`Bad faction goal type: ${goalType}`);
-        }
-      } else if (type === "crime") {
-        return new CrimeAction(this.ns);
-      } else {
-        throw new Error(`Bad action: ${type}`);
-      }
+      let canonicalAction = canonicalActions[type];
+      if (!canonicalAction) throw new Error(`Unknown action type: ${type}`);
+
+      return ACTION_TYPES[canonicalAction].create(this.ns, ...args);
     });
   }
 }
+
+let canonicalActions = {
+  stat: "stat",
+  faction: "faction",
+  corp: "corp",
+  crime: "crime",
+
+  s: "stat",
+  f: "faction",
+  c: "crime",
+  corporation: "corp",
+};
 
 class Action extends NSObject {
   targetMet() {
@@ -64,7 +74,10 @@ class Action extends NSObject {
     return this._player;
   }
 
+  async setup() {}
+
   async run() {
+    await this.setup();
     // Runs until target is met
     while (!this.targetMet()) {
       await this.do();
@@ -72,6 +85,10 @@ class Action extends NSObject {
     }
 
     this.player.stop();
+  }
+
+  static create(...args) {
+    return new this(...args);
   }
 }
 
@@ -83,9 +100,28 @@ class FactionAction extends Action {
     this.target = target;
   }
 
+  async setup() {
+    let factions = this.ns.checkFactionInvitations();
+    for (let faction of factions) {
+      if (CITIES.has(faction)) continue;
+      this.ns.joinFaction(faction);
+    }
+  }
+
   async do() {
     await this.ns.workForFaction(this.faction, "hacking");
-    await this.sleep(1000);
+    await this.sleep(10000);
+  }
+
+  static create(ns, name, goalType, ...args) {
+    let faction = canonicalFaction(name);
+    if (!faction) throw new Error(`Bad faction name: ${name}`);
+
+    if (goalType === "rep" || goalType === "r") {
+      return new FactionRepAction(ns, faction, ...args);
+    } else if (goalType === "favor" || goalType === "f") {
+      return new FactionFavorAction(ns, faction, ...args);
+    }
   }
 }
 
@@ -95,7 +131,7 @@ class FactionRepAction extends FactionAction {
   }
 
   info() {
-    return `Raise ${this.faction} rep to ${this.target}`;
+    return `Faction Rep: Raise ${this.faction} rep to ${this.target}`;
   }
 }
 
@@ -108,7 +144,7 @@ class FactionFavorAction extends FactionAction {
   }
 
   info() {
-    return `Raise ${this.faction} favor to ${this.target}`;
+    return `Faction Favor: Raise ${this.faction} favor to ${this.target}`;
   }
 }
 
@@ -144,6 +180,62 @@ class StatTrain extends Action {
 
   info() {
     return `Raise ${this.stat} to ${this.target}`;
+  }
+}
+
+class CompanyAction extends Action {
+  constructor(ns, company, target) {
+    super(ns);
+    this.company = company;
+    this.target = target;
+  }
+
+  async setup() {
+    let city = COMPANIES[this.company];
+    this.player.travel(city);
+  }
+
+  async do() {
+    while (this.ns.applyToCompany(this.company, "software"));
+
+    await this.ns.workForCompany(this.company);
+    await this.sleep(10000);
+  }
+
+  static create(ns, name, type, target) {
+    let company = canonicalCompany(name);
+    if (!company) throw new Error(`No company for ${name}`);
+
+    if (type === "rep" || type === "r") {
+      return new CompanyRepAction(ns, company, target);
+    } else if (type === "favor" || type === "f") {
+      return new CompanyFavorAction(ns, company, target);
+    } else {
+      throw new Error(`Unknown goal type: ${type} for ${company}`);
+    }
+  }
+}
+
+class CompanyRepAction extends CompanyAction {
+  retrieveLevel() {
+    return this.ns.getCompanyRep(this.company);
+  }
+
+  info() {
+    return `Corp Rep: Working for ${this.company} goal ${this.target} reputation`;
+  }
+}
+
+class CompanyFavorAction extends CompanyAction {
+  retrieveLevel() {
+    return (
+      this.ns.getCompanyFavor(this.company) +
+      this.ns.getCompanyFavorGain(this.company)
+    );
+  }
+
+  info() {
+    return `Corp Favor: Working for ${this.company} goal ${this.target} favor`;
   }
 }
 
@@ -184,19 +276,32 @@ const validFactions = new Set([
   "Bladeburners",
 ]);
 
-function canonicalFaction(term) {
-  if (validFactions.has(term)) return term;
+let validStats = new Set(Object.keys(STAT_MAP));
+
+function matcher(term, set) {
+  if (set.has(term)) return term;
   let regex = new RegExp(term);
 
-  for (let faction of validFactions) {
-    if (faction.match(regex)) return faction;
+  for (let item of set) {
+    if (item.match(regex)) return item;
   }
 
-  for (let faction of validFactions) {
-    if (faction.toLowerCase().match(regex)) return faction;
+  for (let item of set) {
+    if (item.toLowerCase().match(regex)) return item;
   }
-
-  return undefined;
 }
 
-let validStats = new Set(Object.keys(STAT_MAP));
+function canonicalCompany(term) {
+  return matcher(term, new Set(Object.keys(COMPANIES)));
+}
+
+function canonicalFaction(term) {
+  return matcher(term, validFactions);
+}
+
+let ACTION_TYPES = {
+  stat: StatTrain,
+  faction: FactionAction,
+  corp: CompanyAction,
+  crime: CrimeAction,
+};

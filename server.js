@@ -20,6 +20,8 @@ See Setup section of README for more details`);
   throw new Error("Cannot start");
 }
 
+let shouldStop = false;
+
 const requestHandler = (req, res) => {
   console.log(`Got requst: ${req.url}`);
   setCORS(req, res);
@@ -33,7 +35,13 @@ const requestHandler = (req, res) => {
   if (req.url === "/files") {
     res.end(JSON.stringify(gatherFiles()));
   } else if (req.url === "/shouldStop") {
-    res.end("No");
+    res.end(shouldStop ? "Yes" : "No");
+  } else if (req.url === "/toggleStop/yes") {
+    shouldStop = true;
+    res.end(`Should Stop: ${shouldStop}`);
+  } else if (req.url === "/toggleStop/no") {
+    shouldStop = false;
+    res.end(`Should Stop: ${shouldStop}`);
   } else {
     res.end(slurpFile(`${dirname}/${LOADER}`));
   }
