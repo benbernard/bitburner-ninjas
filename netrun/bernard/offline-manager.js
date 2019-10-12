@@ -11,13 +11,17 @@ class ThisScript extends TK.Script {
       if (action instanceof CrimeAction && count !== actions.length) {
         throw new Error(`CrimeAction not last action!`);
       }
+      count++;
 
       this.tlog(`Will do action: ${action.info()}`);
     }
 
-    return;
-    await this.sleep(10000);
-    this.tlog(`Starting`);
+    let actionMessages = actions.map(a => a.info()).join("<br>\n");
+
+    let doIt = await this.ns.prompt(
+      `About to start offline efforts, summary:<br><br>${actionMessages}`
+    );
+    if (!doIt) await this.exit(`Cancelling...`);
 
     for (let action of actions) {
       this.tlog(`Running ${action.info()}`);
@@ -29,17 +33,18 @@ class ThisScript extends TK.Script {
     return actions.map(spec => {
       let [type, ...args] = spec.split(":");
 
-      if (canonicalFaction(type)) {
+      let faction = canonicalFaction(type);
+      if (validStats.has(type)) {
+        return new StatTrain(this.ns, type, ...args);
+      } else if (faction) {
         let [goalType, target] = args;
         if (goalType === "rep") {
-          return new FactionRepAction(this.ns, type, target);
+          return new FactionRepAction(this.ns, faction, target);
         } else if (goalType === "favor") {
-          return new FactionFavorAction(this.ns, type, target);
+          return new FactionFavorAction(this.ns, faction, target);
         } else {
           throw new Error(`Bad faction goal type: ${goalType}`);
         }
-      } else if (validStats.has(type)) {
-        return new StatTrain(this.ns, type, ...args);
       } else if (type === "crime") {
         return new CrimeAction(this.ns);
       } else {
@@ -80,7 +85,7 @@ class FactionAction extends Action {
 
   async do() {
     await this.ns.workForFaction(this.faction, "hacking");
-    await this.sleep(60000); // 1s
+    await this.sleep(1000);
   }
 }
 
@@ -134,7 +139,7 @@ class StatTrain extends Action {
   }
 
   do() {
-    return this.trainTo(this.stat, this.target);
+    return this.player.trainTo(this.stat, this.target);
   }
 
   info() {
@@ -184,7 +189,11 @@ function canonicalFaction(term) {
   let regex = new RegExp(term);
 
   for (let faction of validFactions) {
-    if (faction.match(regex)) return term;
+    if (faction.match(regex)) return faction;
+  }
+
+  for (let faction of validFactions) {
+    if (faction.toLowerCase().match(regex)) return faction;
   }
 
   return undefined;

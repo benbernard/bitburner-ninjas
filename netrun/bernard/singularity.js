@@ -111,10 +111,10 @@ export class Player extends NSObject {
 
   train(statTerm) {
     if (!(statTerm in STAT_MAP)) {
-      throw new Error(`Unrecognized stat: ${stat}`);
+      throw new Error(`Unrecognized stat: ${statTerm}`);
     }
 
-    let stat = STAT_MAP[stat];
+    let stat = STAT_MAP[statTerm];
 
     let type = TRAINING_TYPES[stat];
     if (type === "workout") {
