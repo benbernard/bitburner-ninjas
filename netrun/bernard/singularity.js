@@ -250,10 +250,10 @@ export class Player extends NSObject {
     await this.checkStop();
   }
 
-  async waitUntilNotBusy() {
+  async waitUntilNotBusy(interval = 100) {
     while (this.isBusy()) {
       await this.checkStop();
-      await this.sleep(100);
+      await this.sleep(interval);
     }
 
     await this.checkStop();

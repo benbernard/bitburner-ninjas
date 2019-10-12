@@ -154,8 +154,8 @@ class ThisScript extends TK.Script {
     }
 
     let home = servers.find(s => s.name === "home");
-    // home.maxRamUsedPercentage = 0.75;
-    home.maxRamUsedPercentage = 0;
+    home.maxRamUsedPercentage = 0.75;
+    // home.maxRamUsedPercentage = 0;
 
     return servers.sort((a, b) => b.availableRam() - a.availableRam());
   }

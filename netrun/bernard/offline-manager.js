@@ -32,6 +32,11 @@ class ThisScript extends TK.Script {
       this.tlog(`Running ${action.info()}`);
       await action.run();
     }
+
+    this.tlog(`Done with offline tasks at ${this.logDate()}`);
+
+    this.tlog(`Starting crime loop for no reason`);
+    await new CrimeAction(this.ns).run();
   }
 
   // Examples:
@@ -56,6 +61,7 @@ let canonicalActions = {
   stat: "stat",
   faction: "faction",
   corp: "corp",
+  fullcorp: "fullcorp",
   crime: "crime",
 
   s: "stat",
@@ -216,6 +222,30 @@ class CompanyAction extends Action {
   }
 }
 
+class CompanyFullAction extends CompanyAction {
+  constructor(ns, company) {
+    super(ns);
+    this.company = company;
+  }
+
+  async run() {
+    while (this.ns.applyToCompany(this.company, "software"));
+    await this.ns.workForCompany(this.company);
+    await this.player.waitUntilNotBusy(30000);
+  }
+
+  info() {
+    return `Full Shift at: ${this.company}`;
+  }
+
+  static create(ns, name) {
+    let company = canonicalCompany(name);
+    if (!company) throw new Error(`No company for ${name}`);
+
+    return new this(ns, name);
+  }
+}
+
 class CompanyRepAction extends CompanyAction {
   retrieveLevel() {
     return this.ns.getCompanyRep(this.company);
@@ -269,4 +299,5 @@ let ACTION_TYPES = {
   faction: FactionAction,
   corp: CompanyAction,
   crime: CrimeAction,
+  fullcorp: CompanyFullAction,
 };
