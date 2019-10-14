@@ -7,6 +7,16 @@ class ThisScript extends BaseScript {
 
     this.log(`Hacking ${server}, stock: ${stock}`);
     await this.ns.hack(server, {stock});
+
+    // this.tlog(
+    //   [
+    //     `Available money: ${this.cFormat(
+    //       this.ns.getServerMoneyAvailable(server)
+    //     )}`,
+    //     `Available home money: ${this.ns.getServerMoneyAvailable("home")}`,
+    //     `Hack: ${this.ns.getHackingLevel()}`,
+    //   ].join(" ")
+    // );
   }
 }
 

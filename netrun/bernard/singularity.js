@@ -36,7 +36,7 @@ const GYM_CITY = SECTOR12;
 
 export const STAT_MAP = {
   str: "strength",
-  dex: "dexerity",
+  dex: "dexterity",
   agi: "agility",
   def: "defense",
 

@@ -14,7 +14,7 @@ class Visitor extends NSObject {
     children = children.filter(name => !this.seen[name]);
 
     for (let child of children) {
-      await this.visitor(child, level);
+      await this.visitor(child, level, server);
       this.seen[child] = 1;
       await this.traverse(child, level + 1);
     }

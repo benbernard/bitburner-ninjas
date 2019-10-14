@@ -34,9 +34,6 @@ class ThisScript extends TK.Script {
     }
 
     this.tlog(`Done with offline tasks at ${this.logDate()}`);
-
-    this.tlog(`Starting crime loop for no reason`);
-    await new CrimeAction(this.ns).run();
   }
 
   // Examples:
@@ -276,6 +273,10 @@ let validStats = new Set(Object.keys(STAT_MAP));
 function matcher(term, set) {
   if (set.has(term)) return term;
   let regex = new RegExp(term);
+
+  for (let item of set) {
+    if (item.toLowerCase().startsWith(term.toLowerCase())) return item;
+  }
 
   for (let item of set) {
     if (item.match(regex)) return item;

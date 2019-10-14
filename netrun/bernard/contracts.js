@@ -155,6 +155,21 @@ function mergeIntervals(intervals, ns) {
     return a[0] - b[0];
   });
 
+  let lastPoint = points[0];
+  let newPoints = [];
+  for (let point of points.slice(1)) {
+    if (point[0] !== lastPoint[0]) {
+      if (lastPoint[1] !== 0) {
+        newPoints.push(lastPoint);
+      }
+      lastPoint = point;
+    } else {
+      lastPoint[1] += point[1];
+    }
+  }
+
+  points = [...newPoints, lastPoint];
+
   let openCount = 1;
   let start = points[0][0];
   let output = [];

@@ -110,12 +110,36 @@ export class Server extends NSObject {
     }
   }
 
-  threadsForMinWeaken() {
+  hackTime() {
+    return this.ns.getHackTime(this.name);
+  }
+
+  growTime() {
+    return this.ns.getGrowTime(this.name);
+  }
+
+  weakenTime() {
+    return this.ns.getWeakenTime(this.name);
+  }
+
+  threadsForMinWeaken({extraHack = 0, extraGrow = 0} = {}) {
     let min = this.minSecurity();
     let current = this.security();
 
+    if (extraHack > 0) {
+      current += extraHack * 0.002;
+    }
+
+    if (extraGrow > 0) {
+      current += extraGrow * 0.004;
+    }
+
     let target = current - min;
     return Math.ceil(target / 0.05);
+  }
+
+  threadsForMaxMoneyHack(fraction) {
+    return this.ns.hackAnalyzeThreads(this.name, this.maxMoney() * fraction);
   }
 
   threadsForHack(fraction) {
@@ -187,7 +211,15 @@ export class Server extends NSObject {
   }
 
   async traverse(fn, seen = {}, indent = "") {
-    let wrapper = (s, level) => fn(new Server(this.ns, s), level);
+    let servers = {};
+    let wrapper = (s, level, parentName) => {
+      let parent = servers[parentName];
+      let newServer = new Server(this.ns, s, parent);
+      servers[s] = newServer;
+
+      fn(newServer, level);
+    };
+
     return traverse(this.name, this.ns, wrapper, seen, indent);
   }
 

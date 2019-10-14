@@ -7,6 +7,12 @@ class ThisScript extends BaseScript {
 
     this.log(`Growing ${server}, stock: ${stock}`);
     await this.ns.grow(server, {stock});
+
+    // this.tlog(
+    //   `Available money: ${this.cFormat(
+    //     this.ns.getServerMoneyAvailable(server)
+    //   )}`
+    // );
   }
 }
 

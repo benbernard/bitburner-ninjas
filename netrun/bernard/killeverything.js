@@ -7,7 +7,7 @@ class ThisScript extends TK.ServerScript {
     let home = servers.find(s => s.name === "home");
     servers = servers.filter(s => s.name !== "home");
 
-    for (let server of servers) {
+    for (let server of [...servers, home]) {
       let processes = server.ps();
 
       for (let info of processes) {
@@ -16,8 +16,6 @@ class ThisScript extends TK.ServerScript {
 
       await server.killall();
     }
-
-    await home.killall();
   }
 }
 

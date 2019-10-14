@@ -88,8 +88,17 @@ export class NSObject {
 }
 
 export default class BaseScript extends NSObject {
+  constructor(ns) {
+    super(ns);
+    this.originalArgs = [...this.ns.args];
+  }
+
   get args() {
     return this.ns.args;
+  }
+
+  hasArg(term) {
+    return this.ns.args.indexOf(term) !== -1;
   }
 
   pullFirstArg() {
