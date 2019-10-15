@@ -148,6 +148,10 @@ export class Server extends NSObject {
     );
   }
 
+  threadsForHackPercent(percent) {
+    return Math.floor(percent / this.ns.hackAnalyzePercent(this.name));
+  }
+
   threadsForMaxGrowth() {
     let money = this.money();
     let maxMoney = this.maxMoney();

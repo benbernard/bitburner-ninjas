@@ -5,8 +5,60 @@ let GROW_SCRIPT = "minimal-grow.js";
 let WEAKEN_SCRIPT = "minimal-weaken.js";
 let HACK_SCRIPT = "minimal-hack.js";
 class ThisScript extends TK.Script {
+  async prepareAll() {
+    let servers = await this.home.reachableServers();
+    servers = servers.filter(s => s.maxMoney() > 0).sort(byMoneyPerTime);
+
+    let delayedJobs = [];
+    for (let server of servers) {
+      let growThreads = server.threadsForMaxGrowth();
+      let weakenThreads = server.threadsForMinWeaken({extraGrow: growThreads});
+
+      if (growThreads > 0) {
+        let job = new DelayedRun(
+          this.ns,
+          0,
+          GROW_SCRIPT,
+          growThreads,
+          server.name,
+          0
+        );
+        job.run();
+        delayedJobs.push(job);
+      }
+
+      if (weakenThreads > 0) {
+        let job = new DelayedRun(
+          this.ns,
+          0,
+          WEAKEN_SCRIPT,
+          weakenThreads,
+          server.name
+        );
+        job.run();
+        delayedJobs.push(job);
+      }
+    }
+
+    this.tlog(`Running ${delayedJobs.length} jobs`);
+
+    if (delayedJobs.length === 0) return;
+
+    while (true) {
+      await this.sleep(1000);
+      for (let job of delayedJobs) {
+        if (job.isRunning()) continue;
+      }
+      break;
+    }
+
+    this.tlog(`Done preparing`);
+  }
+
   async perform() {
     this.disableLogging("sleep");
+    if (this.hasArg("--prepAll")) return this.prepareAll();
+
     let host = this.pullFirstArg() || "summit-uni";
     let server = this.server(host);
 
@@ -138,12 +190,17 @@ class DelayedRun extends NSObject {
 
   isRunning() {
     if (!this.started) return true;
-    return this.ns.isRunning(this.script, "home", ...this.runningArgs());
+    return this.ns.isRunning(this.script, "hydra", ...this.runningArgs());
   }
 
   run() {
     this.started = true;
-    let pid = this.ns.run(this.script, this.threads, ...this.runningArgs());
+    let pid = this.ns.exec(
+      this.script,
+      "hydra",
+      this.threads,
+      ...this.runningArgs()
+    );
     if (pid === 0)
       throw new Error(
         `Could not start ${this.script} ${this.runningArgs().join(" ")}`
@@ -287,6 +344,37 @@ class PodAttack extends NSObject {
 
 function round2(num) {
   return Math.floor(num * 100) / 100;
+}
+
+function byMoneyPerTime(a, b) {
+  return moneyPerTime(b) - moneyPerTime(a);
+}
+
+function moneyPerTime(server) {
+  let money = server.maxMoney() * 0.5;
+  let time = server.hackTime() + server.growTime() + server.weakenTime();
+  return money / time;
+}
+
+function byMoneyPerRam(a, b) {
+  return moneyPerRam(b) - moneyPerRam(a);
+}
+
+function moneyPerRam(server) {
+  let hackThreads = server.threadsForHackPercent(50);
+  let growThreads = Math.ceil(server.threadsForGrowth(2));
+  let weakenThreads = (hackThreads * 0.002 + growThreads * 0.004) / 0.05;
+
+  let hackRam = server.scriptRam("minimal-hack.js");
+  let growRam = server.scriptRam("minimal-grow.js");
+  let weakenRam = server.scriptRam("minimal-weaken.js");
+
+  let ram =
+    hackRam * hackThreads + growThreads * growRam + weakenRam * weakenThreads;
+
+  let money = server.maxMoney() * 0.5;
+
+  return money / ram;
 }
 
 export let main = ThisScript.runner();

@@ -157,7 +157,8 @@ class CrimeAction extends Action {
   }
 
   async do() {
-    return this.player.commitCrime("homicide");
+    // return this.player.commitCrime("homicide");
+    return this.player.commitCrime("shoplift");
   }
 
   info() {

@@ -6,6 +6,10 @@ class ThisScript extends TK.ServerScript {
 
     this.kill("home");
 
+    await this.sleep(100);
+
+    this.kill("home");
+
     for (let server of servers) {
       this.kill(server.name);
     }
