@@ -1,5 +1,12 @@
 import * as TK from "./tk.js";
-import {CITIES, COMPANIES, FACTIONS, Player, STAT_MAP} from "./singularity.js";
+import {
+  CITIES,
+  COMPANIES,
+  CRIMES,
+  FACTIONS,
+  Player,
+  STAT_MAP,
+} from "./singularity.js";
 import {NSObject} from "./baseScript.js";
 
 class ThisScript extends TK.Script {
@@ -152,17 +159,25 @@ class FactionFavorAction extends FactionAction {
 }
 
 class CrimeAction extends Action {
+  constructor(ns, crime = "homicide") {
+    super(ns);
+    this.crime = crime;
+  }
+
   targetMet() {
     return false;
   }
 
   async do() {
-    // return this.player.commitCrime("homicide");
-    return this.player.commitCrime("shoplift");
+    return this.player.commitCrime(this.crime);
   }
 
   info() {
-    return `Commit crime looped`;
+    return `Commit crime ${this.crime} looped`;
+  }
+
+  static create(ns, crimeTerm = "homicide") {
+    return new this(ns, canonicalCrime(crimeTerm));
   }
 }
 
@@ -273,12 +288,12 @@ let validStats = new Set(Object.keys(STAT_MAP));
 
 function matcher(term, set) {
   if (set.has(term)) return term;
-  let regex = new RegExp(term);
 
   for (let item of set) {
     if (item.toLowerCase().startsWith(term.toLowerCase())) return item;
   }
 
+  let regex = new RegExp(term);
   for (let item of set) {
     if (item.match(regex)) return item;
   }
@@ -294,6 +309,10 @@ function canonicalCompany(term) {
 
 function canonicalFaction(term) {
   return matcher(term, FACTIONS);
+}
+
+function canonicalCrime(term) {
+  return matcher(term, CRIMES);
 }
 
 let ACTION_TYPES = {

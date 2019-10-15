@@ -3,7 +3,7 @@ import {BaseScript, NSObject} from "./baseScript.js";
 const STOP_FILE = "stop_file.txt";
 const TOGGLE_FILE = "toggle_file.txt";
 
-export const CRIMES = [
+export const CRIMES = new Set([
   "shoplift",
   "rob store",
   "mug",
@@ -16,7 +16,7 @@ export const CRIMES = [
   "kidnap",
   "assassinate",
   "heist",
-];
+]);
 
 const SECTOR12 = "Sector-12";
 const VOLHAVEN = "Volhaven";
@@ -187,7 +187,7 @@ export class Player extends NSObject {
   }
 
   validCrime(crime) {
-    return CRIMES.indexOf(crime) !== -1;
+    return CRIMES.has(crime);
   }
 
   async commitCrime(crime) {

@@ -26,8 +26,7 @@ class ThisScript extends BaseScript {
       await this.checkStop();
       await this.upgradeHomeRam();
       await this.buyPrograms();
-      // let result = await this.ns.commitCrime("shoplift");
-      // let result = await this.ns.commitCrime("mug");
+
       let result = await this.ns.commitCrime("homicide");
       while (this.ns.isBusy()) {
         await this.sleep(100);
