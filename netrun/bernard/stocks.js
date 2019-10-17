@@ -1,4 +1,3 @@
-import {BankMessaging} from "./messaging.js";
 import {NSObject} from "./baseScript.js";
 
 export class Stock extends NSObject {

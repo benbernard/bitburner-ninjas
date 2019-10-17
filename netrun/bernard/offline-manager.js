@@ -76,7 +76,7 @@ let canonicalActions = {
 
 class Action extends NSObject {
   targetMet() {
-    return this.retrieveLevel() > this.target;
+    return this.retrieveLevel() >= this.target;
   }
 
   get player() {

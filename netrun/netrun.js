@@ -3,18 +3,6 @@
 // in the toolkit that doesn't even allow scripts to load
 const RELOAD_SCRIPT = "netrun-reload.js";
 
-let LIBRARY_FILES = [
-  "baseScript.js",
-  "tk.js",
-  "contracts.js",
-  "purchased.js",
-  "stock.js",
-  "messaging.js",
-  "utils.js",
-  "bank.js",
-  "singularity.js",
-];
-
 let NS;
 export async function main(ns) {
   NS = ns;
@@ -102,6 +90,47 @@ async function updateFile(file, contents) {
   return false;
 }
 
+function fileImports(content) {
+  let imports = [];
+  let matches = content.matchAll(/^import .*from ".\/(.*)";/gm);
+  for (let results of matches) {
+    imports.push(results[1]);
+  }
+
+  return imports;
+}
+
+function fileOrder(contents) {
+  let deps = {};
+
+  for (let file of Object.keys(contents)) {
+    let content = contents[file];
+    let imports = Array.from(fileImports(content));
+    deps[file] = imports;
+  }
+
+  let output = [];
+  let seen = new Set();
+  for (let file of Object.keys(deps)) {
+    output.push(...traverse(file, deps, seen));
+  }
+
+  return output;
+}
+
+function traverse(file, deps, seen) {
+  if (seen.has(file)) return [];
+  seen.add(file);
+
+  let others = [];
+
+  for (let dep of deps[file]) {
+    others.push(...traverse(dep, deps, seen));
+  }
+
+  return [...others, file];
+}
+
 async function updateFiles() {
   const INFO_FILE = "netrun_temp.txt";
 
@@ -111,12 +140,7 @@ async function updateFiles() {
   let hasChanges = false;
   let contents = JSON.parse(NS.read(INFO_FILE));
 
-  for (let file of LIBRARY_FILES) {
-    if (!(file in contents)) continue;
-    await updateFile(file, contents[file]);
-  }
-
-  for (let file of Object.keys(contents)) {
+  for (let file of fileOrder(contents)) {
     let changedFile = await updateFile(file, contents[file]);
     if (file === "netrun.js") hasChanges = changedFile;
   }
@@ -130,6 +154,8 @@ async function updateFiles() {
 
 // Check to make sure that BaseScript will not inflate script ram sizes
 async function checkBaseScript() {
+  if (!NS.fileExists("baseScript.js")) return;
+
   // Check baseScript is still good
   let ramUsage = NS.getScriptRam("baseScript.js");
   if (ramUsage !== 1.6) {
