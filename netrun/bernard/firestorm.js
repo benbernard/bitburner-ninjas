@@ -40,11 +40,8 @@ class ThisScript extends TK.Script {
     let now = this.now();
 
     let attacks = [];
-    let count = 0;
     for (let server of servers) {
       if (this.readyToAttack(server)) continue;
-      count++;
-      if (count > 1) break;
       let newAttack = new PodAttack(this.ns, {
         mode: "prepare",
         server,
@@ -124,7 +121,7 @@ class ThisScript extends TK.Script {
 
       if (this.readyToAttack(server)) {
         this.createFullPodAttack(server, priority, now);
-        break;
+        // break;
       } else {
         this.addPodAttack(
           new PodAttack(this.ns, {
@@ -214,9 +211,9 @@ class ThisScript extends TK.Script {
       clearProcRunningCache();
       let now = this.now();
       let removed = this.cleanupAttacks();
-      // if (removed) {
-      //   await this.startAttacks(now);
-      // }
+      if (removed) {
+        await this.startAttacks(now);
+      }
 
       await this.runAttacks(now);
       this.updateStatus();
@@ -423,7 +420,7 @@ class DelayedAttack extends NSObject {
           if (!procIsRunning(proc)) continue;
           let serverName = proc.server.name;
           if (!(serverName in attackRam))
-            attackRam[serverName] = proc.server.attackRam();
+            attackRam[serverName] = proc.server.availableRam();
           attackRam[serverName] += proc.ram();
         }
       }
@@ -457,10 +454,41 @@ class DelayedAttack extends NSObject {
     return unallocatedThreads <= 0;
   }
 
+  threadsForRam(ram) {
+    return Math.floor(ram / this.ramPerThread());
+  }
+
+  threadsIfEvicted(scriptRam) {
+    let threads = 0;
+    for (let proc of this.procs) {
+      if (!procIsRunning(proc)) continue;
+      threads += Math.floor(proc.ram() / scriptRam);
+    }
+
+    return threads;
+  }
+
   evictAndRun(servers, otherAttacks, unallocatedThreads) {
     if (unallocatedThreads === 0) return [];
 
-    let sorted = otherAttacks.sort((a, b) => b.priority - a.priority);
+    this.tlog(`evciting threads`);
+
+    let sorted = otherAttacks.sort(
+      (a, b) => b.runningRam({podRam: false}) - a.runningRam({podRam: false})
+    );
+
+    let selectedAttack;
+    for (let attack of sorted) {
+      if (attack.threadsIfEvicted(this.ramPerThread()) >= unallocatedThreads) {
+        selectedAttack = attack;
+      }
+    }
+
+    if (selectedAttack) {
+      let freedServers = selectedAttack.procServers();
+      selectedAttack.kill();
+      return this.fillFreeSpace(freedServers, unallocatedThreads);
+    }
 
     let procs = [];
     for (let attack of sorted) {
@@ -537,6 +565,16 @@ class DelayedAttack extends NSObject {
     this.procs = [...procs, ...evictionProcs];
     this.procs.forEach(p => p.run());
     return true;
+  }
+
+  runningRam({podRam = true} = {}) {
+    if (podRam && this.podAttack) {
+      return this.podAttack.runningRam();
+    }
+
+    return this.procs
+      .filter(p => procIsRunning(p))
+      .reduce((sum, p) => sum + p.ram(), 0);
   }
 }
 
@@ -685,6 +723,13 @@ class PodAttack extends NSObject {
     }
 
     return false;
+  }
+
+  runningRam() {
+    return this.delayedAttacks.reduce(
+      (sum, attack) => sum + attack.runningRam({podRam: false}),
+      0
+    );
   }
 
   startWeakenGrowTime() {
