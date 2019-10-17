@@ -28,6 +28,7 @@ class ThisScript extends TK.ServerScript {
   kill(name) {
     this.ns.scriptKill("hydra-hack.js", name);
     this.ns.scriptKill("firestorm.js", name);
+    this.ns.scriptKill("firegale.js", name);
     this.ns.scriptKill("minimal-hack.js", name);
     this.ns.scriptKill("minimal-grow.js", name);
     this.ns.scriptKill("minimal-weaken.js", name);

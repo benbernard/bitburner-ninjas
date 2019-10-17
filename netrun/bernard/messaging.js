@@ -53,7 +53,7 @@ export class Messaging extends NSObject {
       }
 
       await this.sleep(100);
-      if (handle.data.length > 1) {
+      if (handle.data.length > 0) {
         let response = handle.data.find(msg => msg.responseTo === uuid);
         if (!response) continue;
 
@@ -112,6 +112,23 @@ export class BankMessaging extends Messaging {
     });
   }
 
+  stockBuy(symbol, shares) {
+    return this.sendAndWait({
+      type: BankMessaging.STOCK_BUY,
+      symbol,
+      shares,
+      wallet: "stocks",
+    });
+  }
+
+  sellStocks(sells) {
+    return this.sendAndWait({
+      type: BankMessaging.SELL_STOCKS,
+      sells,
+      wallet: "stocks",
+    });
+  }
+
   allWallets() {
     return this.sendAndWait({type: BankMessaging.ALL_WALLETS});
   }
@@ -129,3 +146,5 @@ BankMessaging.DEPOSIT = "deposit";
 BankMessaging.SET_BALANCES = "set_balances";
 BankMessaging.ALL_WALLETS = "all_wallets";
 BankMessaging.CLEAR = "clear";
+BankMessaging.STOCK_BUY = "stock_buy";
+BankMessaging.SELL_STOCKS = "sell_stocks";

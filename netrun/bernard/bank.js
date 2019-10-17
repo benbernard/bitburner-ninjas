@@ -1,5 +1,6 @@
 import {BaseScript, NSObject} from "./baseScript.js";
 import {BankMessaging} from "./messaging.js";
+import {convertStrToMoney} from "./utils.js";
 
 const BANK_INFO_FILE = "bank-info.txt";
 
@@ -29,7 +30,9 @@ export class BankScript extends BaseScript {
         try {
           this.handleRequest(message);
         } catch (e) {
-          this.tlog(`Error handling bank message: ${e.message}`);
+          this.tlog(
+            `Error handling bank message: ${e instanceof String ? e : e.stack}`
+          );
         }
       }
 
@@ -58,6 +61,10 @@ export class BankScript extends BaseScript {
       return this.setBalances(req);
     } else if (type === BankMessaging.ALL_WALLETS) {
       return this.allWalletsInfo(req);
+    } else if (type === BankMessaging.STOCK_BUY) {
+      return this.stockBuy(req);
+    } else if (type === BankMessaging.SELL_STOCKS) {
+      return this.sellStocks(req);
     } else if (type === BankMessaging.CLEAR) {
       this.initializeState();
       return this.messaging.sendResponse(req, {success: true});
@@ -66,15 +73,40 @@ export class BankScript extends BaseScript {
     }
   }
 
+  stockBuy(req) {
+    let {symbol, shares} = req.data;
+    let sharePrice = this.ns.getStockAskPrice(symbol);
+    let cost = shares * sharePrice;
+    let wallet = this.wallet(req.data.wallet);
+
+    let purchased = this.purchaseForWallet(
+      wallet,
+      cost,
+      `Buying shares ${shares} of stock ${symbol}`,
+      () => {
+        return this.ns.buyStock(symbol, shares);
+      }
+    );
+
+    return this.messaging.sendResponse(req, {purchased});
+  }
+
+  sellStocks(req) {
+    let {sells} = req.data;
+    let wallet = this.wallet(req.data.wallet);
+
+    let success = this.purchaseForWallet(wallet, 0, `Selling shares`, () => {
+      for (let symbol of Object.keys(sells)) {
+        let shares = sells[symbol];
+        this.ns.sellStock(symbol, shares);
+      }
+    });
+
+    return this.messaging.sendResponse(req, {success});
+  }
+
   allWalletsInfo(req) {
-    let wallets = [...this.wallets];
-
-    // let total = this.walletTotal();
-    // let remainder = this.actualMoney() - total;
-    // let portionSum = wallets.reduce((sum, e) => sum + e.portion, 0);
-    // let remainderPortion = Math.floor((1 - portionSum) * 100) / 100;
-    // wallets.push({name: "free", amount: remainder, portion: remainderPortion});
-
+    let wallets = this.clone(this.wallets);
     return this.messaging.sendResponse(req, {wallets: wallets});
   }
 
@@ -84,17 +116,14 @@ export class BankScript extends BaseScript {
     let ram = req.data.ram;
 
     let cost = this.ns.getPurchasedServerCost(ram);
-    let purchased = false;
-    if (cost < wallet.amount) {
-      this.purchaseForWallet(
-        wallet.name,
-        `Buying server of size: ${ram} name: ${name}`,
-        () => {
-          this.ns.purchaseServer(name, ram);
-        }
-      );
-      purchased = true;
-    }
+    let purchased = this.purchaseForWallet(
+      wallet,
+      cost,
+      `Buying server of size: ${ram} name: ${name}`,
+      () => {
+        this.ns.purchaseServer(name, ram);
+      }
+    );
 
     return this.messaging.sendResponse(req, {purchased});
   }
@@ -106,18 +135,15 @@ export class BankScript extends BaseScript {
 
     let cost = this.ns.gang.getEquipmentCost(equipment);
 
-    let purchased = false;
-    if (cost < wallet.amount) {
-      this.purchaseForWallet(
-        wallet.name,
-        `Buying ${equipment} at ${cost} for ${name}`,
-        () => {
-          this.ns.gang.purchaseEquipment(name, equipment);
-        }
-      );
-      purchased = true;
-      this.messaging.sendResponse(req, {purchased});
-    }
+    let purchased = this.purchaseForWallet(
+      wallet,
+      cost,
+      `Buying ${equipment} at ${cost} for ${name}`,
+      () => {
+        this.ns.gang.purchaseEquipment(name, equipment);
+      }
+    );
+    this.messaging.sendResponse(req, {purchased});
   }
 
   setBalances(req) {
@@ -163,19 +189,22 @@ export class BankScript extends BaseScript {
     return this.actualMoney() - walletTotal;
   }
 
-  purchaseForWallet(walletName, description, fn) {
+  purchaseForWallet(wallet, cost, description, fn) {
+    if (cost > wallet.amount) return false;
+
     let currentMoney = this.actualMoney();
     this.log(`Performing Purchase: ${description}`);
     fn();
     let newMoney = this.actualMoney();
 
     let diff = currentMoney - newMoney;
-    let wallet = this.wallet(walletName);
     this.log(`Purchase Cost for: ${description} cost: ${diff}`);
     wallet.amount -= diff;
 
     this.state.allocatedMoney = newMoney;
     this.saveState();
+
+    return true;
   }
 
   update() {
@@ -196,22 +225,32 @@ export class BankScript extends BaseScript {
     let walletsHash = this.walletsByPriority();
 
     if (diff > 0) {
-      let priorities = Object.keys(walletsHash).sort();
+      let leftDiff = diff;
+      let priorities = Object.keys(walletsHash).sort((a, b) => a - b);
       for (let priority of priorities) {
         let wallets = walletsHash[priority];
 
         for (let wallet of wallets) {
+          if (wallet.minMaxMoney && this.state.maxMoney < wallet.minMaxMoney) {
+            continue;
+          }
+
           if (wallet.reserve) {
             if (wallet.reserve > wallet.amount) {
               let wants = wallet.reserve - wallet.amount;
               let change = Math.min(wants, diff);
               diff -= change;
+              leftDiff -= change;
               wallet.amount += change;
             }
           }
 
-          let diffPortion = diff * wallet.portion;
-          wallet.amount += Math.floor(diffPortion);
+          let diffPortion = Math.min(
+            Math.floor(diff * wallet.portion),
+            leftDiff
+          );
+          wallet.amount += diffPortion;
+          leftDiff = Math.max(leftDiff - diffPortion, 0);
         }
       }
     } else {
@@ -237,6 +276,7 @@ export class BankScript extends BaseScript {
     }
 
     this.state.allocatedMoney = currentMoney;
+    this.state.maxMoney = Math.max(currentMoney, this.state.maxMoney);
     this.saveState();
   }
 
@@ -297,11 +337,17 @@ export class BankScript extends BaseScript {
       reserved: 0,
       hackingLevel: this.actualHackingLevel(),
       wallets: {},
+      maxMoney: 0,
     };
 
     // this.addWallet({name: "gang", portion: 0.3});
-    this.addWallet({name: "servers", portion: 0.5});
-    this.addWallet({name: "rest", portion: 0.5, priority: 6});
+    this.addWallet({name: "servers", portion: 0.5, priority: 4});
+    this.addWallet({
+      name: "stocks",
+      portion: 0.3,
+      minMaxMoney: convertStrToMoney("10b"),
+    });
+    this.addWallet({name: "rest", portion: 1, priority: 100});
 
     this.saveState();
   }

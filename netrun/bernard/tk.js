@@ -499,13 +499,21 @@ export class ServerScript extends Script {
 }
 
 export class Process extends NSObject {
-  constructor(ns, {server, scriptRam = null, script, threads = 1, args = []}) {
+  constructor(
+    ns,
+    {server, duration = null, scriptRam = null, script, threads = 1, args = []}
+  ) {
     super(ns);
     this.script = script;
     this.args = args;
     this.threads = threads;
     this.server = server;
     this.started = false;
+
+    if (this.threads <= 0 || isNaN(this.threads))
+      throw new Error(
+        `Invalid thread count passed to Process: ${this.threads}`
+      );
 
     if (scriptRam != null) {
       this._scriptRam = scriptRam;
@@ -515,7 +523,16 @@ export class Process extends NSObject {
     this.runningArgs = [...this.args, this.UUID];
   }
 
+  now() {
+    return this.ns.getTimeSinceLastAug();
+  }
+
   isRunning() {
+    if (!this.started) return false;
+
+    if (this.duration && this.startTime + this.duration > this.now())
+      return true;
+
     return this.ns.isRunning(
       this.script,
       this.server.name,
@@ -533,6 +550,7 @@ export class Process extends NSObject {
     if (this.started) return;
 
     this.setup();
+    this.startTime = this.ns.getTimeSinceLastAug();
     this.pid = this.ns.exec(
       this.script,
       this.server.name,

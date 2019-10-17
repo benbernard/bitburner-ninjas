@@ -11,7 +11,7 @@ class ThisScript extends BaseScript {
     this.bank = new BankMessaging(this.ns);
 
     // Wait for bank to startup
-    await this.sleep(1000);
+    await this.sleep(3000);
 
     while (true) {
       let wallet = await this.bank.walletInfo("servers");

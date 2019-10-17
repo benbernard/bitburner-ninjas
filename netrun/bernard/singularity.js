@@ -172,8 +172,8 @@ export class Player extends NSObject {
   }
 
   async travel(city) {
-    if (this.city !== GYM_CITY) {
-      await this.ns.travelToCity(GYM_CITY);
+    if (this.city !== city) {
+      await this.ns.travelToCity(city);
     }
   }
 
@@ -184,6 +184,10 @@ export class Player extends NSObject {
     if (!success)
       throw new Error(`Could not work out for ${type}, check city?`);
     return success;
+  }
+
+  ownedAugments() {
+    return this.ns.getOwnedAugmentations(true);
   }
 
   validCrime(crime) {
@@ -223,8 +227,11 @@ export class Player extends NSObject {
     if (["hacking", "charisma"].indexOf(stat) === -1)
       throw new Error(`Cannot university train ${stat}`);
 
-    if (this.city !== SECTOR12) {
-      this.travel("Volhaven");
+    if (
+      this.city !== SECTOR12 ||
+      this.ns.getServerMoneyAvailable("home") > 1000000000
+    ) {
+      this.travel(VOLHAVEN);
     }
 
     let university = CITY_UNIVERSITY[this.city];

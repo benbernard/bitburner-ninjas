@@ -1,29 +1,23 @@
 import * as TK from "./tk.js";
+import {BankMessaging} from "./messaging.js";
 import {Market} from "./stocks.js";
 import {convertStrToMoney} from "./utils.js";
-
-let CONVERSIONS = {
-  b: "1000000000",
-  t: "1000000000000",
-};
 
 let BUY_FORECAST = 0.59;
 let SELL_FORECAST = 0.55;
 
 class ThisScript extends TK.Script {
   async perform() {
-    this.market = new Market(this.ns);
+    this.bank = new BankMessaging(this.ns);
+    this.market = new Market(this.ns, this.bank);
 
-    this.initBank(this.args[0]);
     this.initPositions();
 
-    this.log(`Bank Size: ${this.cFormat(this.bank)}`);
-
-    this.useAvailableMoney();
+    await this.useAvailableMoney();
 
     while (true) {
-      this.sellLosers();
-      this.useAvailableMoney();
+      await this.sellLosers();
+      await this.useAvailableMoney();
 
       await this.sleep(6000); // Stock updates at 6 seconds
     }
@@ -31,11 +25,13 @@ class ThisScript extends TK.Script {
 
   async useAvailableMoney() {
     this.updateAllPositions();
-    let availableMoney = this.availableMoney();
+
+    let wallet = await this.bank.walletInfo("stocks");
+    let availableMoney = wallet.amount;
 
     for (let stock of this.candidateStocks()) {
       this.log(`Considering ${stock.symbol}`);
-      let [cost, canBuyMore] = this.buyStock(stock, availableMoney);
+      let [cost, canBuyMore] = await this.stockBuy(stock, availableMoney);
       availableMoney -= cost;
       if (availableMoney < this.bank * 0.1) break;
     }
@@ -43,8 +39,9 @@ class ThisScript extends TK.Script {
     this.log(`Remaining money: ${this.cFormat(availableMoney)}`);
   }
 
-  sellLosers() {
+  async sellLosers() {
     let sold = false;
+    let sells = {};
     for (let position of this.heldPositions()) {
       if (position.forecast() < SELL_FORECAST) {
         this.log(
@@ -52,11 +49,13 @@ class ThisScript extends TK.Script {
             position.shares
           } at ${position.stock.bidPrice()}`
         );
-        position.sell();
+        sells[position.stock.symbol] = position.shares;
         sold = true;
       }
     }
 
+    await this.bank.sellStocks(sells);
+    this.updateAllPositions();
     return sold;
   }
 
@@ -64,7 +63,7 @@ class ThisScript extends TK.Script {
     return Object.values(this.positions).filter(p => p.hasShares());
   }
 
-  buyStock(stock, money) {
+  async stockBuy(stock, money) {
     let position = this.positions[stock.symbol];
     let maxShares = Math.floor(stock.maxShares() * 0.4) - position.shares;
     let shareCost = stock.askPrice();
@@ -87,8 +86,7 @@ class ThisScript extends TK.Script {
       `Buying ${stock.symbol} at ${shareCost}, buying ${sharesToBuy} shares`
     );
 
-    position.buy(sharesToBuy);
-
+    await position.buy(sharesToBuy);
     return [estimatedCost, canBuyMore];
   }
 
@@ -100,31 +98,12 @@ class ThisScript extends TK.Script {
     this.positions[position.stock.symbol] = position;
   }
 
-  availableMoney() {
-    let available =
-      this.bank -
-      Object.values(this.positions).reduce((sum, p) => sum + p.cost(), 0);
-
-    this.log(`Found available money: ${this.cFormat(available)}`);
-    return available;
-  }
-
   initPositions() {
     this.positions = {};
     this.market
       .stocks()
       .map(s => s.position())
       .forEach(p => (this.positions[p.stock.symbol] = p));
-  }
-
-  initBank(str) {
-    if (!str) {
-      throw new Error(`Must run script with bank argument`);
-    } else if (typeof str === "number" || str.match(/^\d+$/)) {
-      this.bank = parseInt(str);
-    } else {
-      this.bank = convertStrToMoney(str);
-    }
   }
 
   candidateStocks() {

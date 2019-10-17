@@ -1,8 +1,10 @@
+import {BankMessaging} from "./messaging.js";
 import {NSObject} from "./baseScript.js";
 
 export class Stock extends NSObject {
-  constructor(ns, symbol) {
+  constructor(ns, bank, symbol) {
     super(ns);
+    this.bank = bank;
     this.symbol = symbol;
   }
 
@@ -30,12 +32,12 @@ export class Stock extends NSObject {
     return this.ns.getStockPurchaseCost(this.symbol, shares, "Long");
   }
 
-  buy(shares) {
-    return this.ns.buyStock(this.symbol, shares);
+  async buy(shares) {
+    return this.bank.stockBuy(this.symbol, shares);
   }
 
-  sell(shares) {
-    return this.ns.sellStock(this.symbol, shares);
+  async sell(shares) {
+    return this.bank.sellStocks({[this.symbol]: shares});
   }
 
   volatility() {
@@ -72,13 +74,13 @@ export class Position extends NSObject {
     this.averageShortPrice = averageShortPrice;
   }
 
-  sell(shares = this.shares) {
-    this.stock.sell(shares);
+  async sell(shares = this.shares) {
+    await this.stock.sell(shares);
     this.update();
   }
 
-  buy(shares) {
-    this.stock.buy(shares);
+  async buy(shares) {
+    await this.stock.buy(shares);
     this.update();
   }
 
@@ -99,8 +101,14 @@ export class Position extends NSObject {
 }
 
 export class Market extends NSObject {
+  constructor(ns, bank) {
+    super(ns);
+    this.bank = bank;
+  }
   stocks() {
-    return this.ns.getStockSymbols().map(sym => new Stock(this.ns, sym));
+    return this.ns
+      .getStockSymbols()
+      .map(sym => new Stock(this.ns, this.bank, sym));
   }
 
   heldPositions() {

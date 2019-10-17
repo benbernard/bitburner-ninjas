@@ -27,7 +27,11 @@ class ThisScript extends TK.Script {
     this.tlog(`Purchased Servers:`);
     for (let name of purchased) {
       let [ram] = this.ns.getServerRam(name);
-      this.tlog(`  ${name} - ${this.rFormat(ram)} - ${ram}`);
+      this.tlog(
+        `  ${name} - ${this.rFormat(ram)} - ${ram} - Dying: ${this.server(
+          name
+        ).isDying()}`
+      );
     }
   }
 

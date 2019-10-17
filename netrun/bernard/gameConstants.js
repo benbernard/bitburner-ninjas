@@ -1160,4 +1160,51 @@ export const AUGMENTS = {
     },
   },
 };
+
+export function augments() {
+  return Object.values(AUGMENTS).map(info => new Augment(info));
+}
+
+class Augment {
+  constructor(info) {
+    this.info = info;
+    if (!this.info.bonuses) this.info.bonuses = {};
+  }
+
+  get name() {
+    return this.info.augmentationName;
+  }
+
+  get rep() {
+    return this.info.repCost;
+  }
+
+  get cost() {
+    return this.info.moneyCost;
+  }
+
+  factions() {
+    return this.info.factions;
+  }
+
+  * bonuses() {
+    for (let key of Object.keys(this.info.bonuses)) {
+      yield [key, this.info.bonuses[key]];
+    }
+  }
+
+  isHacking() {
+    if (this.name.startsWith("CashRoot")) return true;
+    for (let [bonus, amount] of this.bonuses()) {
+      if (bonus.startsWith("hacking")) return true;
+    }
+
+    return false;
+  }
+
+  str() {
+    let bonusInfo = [...this.bonuses()].map(([k, v]) => `${k}=${v}`);
+    return `${this.name} ${bonusInfo.join(" ")}`;
+  }
+}
 /* eslint-enable camelcase */
