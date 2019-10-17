@@ -5,6 +5,29 @@ function run(type, data) {
   console.log(JSON.stringify(solver(data)));
 }
 
+run("Merge Overlapping Intervals", [
+  [3, 12],
+  [3, 4],
+  [4, 6],
+  [11, 21],
+  [25, 32],
+  [23, 28],
+  [16, 26],
+  [14, 21],
+  [8, 14],
+  [5, 11],
+  [24, 34],
+  [7, 15],
+  [11, 18],
+  [13, 18],
+  [8, 16],
+  [14, 22],
+  [3, 11],
+  [16, 22],
+  [5, 12],
+  [4, 11],
+]);
+
 // run("Merge Overlapping Intervals", [
 //   [5, 9],
 //   [14, 24],

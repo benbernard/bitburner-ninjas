@@ -5,7 +5,7 @@ class ThisScript extends BaseScript {
     let server = this.pullFirstArg();
     let stock = this.pullFirstArg() === "1" ? true : false;
 
-    this.log(`Hacking ${server}, stock: ${stock}`);
+    // this.log(`Hacking ${server}, stock: ${stock}`);
     await this.ns.hack(server, {stock});
 
     // this.tlog(

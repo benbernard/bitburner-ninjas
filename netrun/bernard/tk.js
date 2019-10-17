@@ -1,6 +1,8 @@
 import {BaseScript, NSObject} from "./baseScript.js";
 import traverse from "./traverse.js";
 
+const DYING_FILE = "dying.txt";
+
 export let _ = {
   isFunction(val) {
     return typeof val === "function";
@@ -8,6 +10,14 @@ export let _ = {
 
   constant(val) {
     return () => val;
+  },
+
+  keys(obj) {
+    return Object.keys(obj);
+  },
+
+  values(obj) {
+    return Object.values(obj);
   },
 };
 
@@ -22,8 +32,34 @@ export class Server extends NSObject {
     this.ignoredProcesses = [];
   }
 
+  hackTimings() {
+    if (!this._timings) {
+      this._timings = {
+        hackTime: this.hackTime() * 1000,
+        growTime: this.growTime() * 1000,
+        weakenTime: this.weakenTime() * 1000,
+      };
+    }
+
+    return this._timings;
+  }
+
   hackingLevel() {
     return this.ns.getServerRequiredHackingLevel(this.name);
+  }
+
+  isPurchased() {
+    return this.name.startsWith("hydra");
+  }
+
+  setDying() {
+    this.ns.write(DYING_FILE, "not important", "w");
+    this.ns.scp([DYING_FILE], "home", this.name);
+    this.ns.rm(DYING_FILE, "home");
+  }
+
+  isDying() {
+    return this.fileExists(DYING_FILE);
   }
 
   killIgnoredProcesses() {
@@ -165,7 +201,13 @@ export class Server extends NSObject {
   }
 
   hasRoot() {
-    return this.ns.hasRootAccess(this.name);
+    if (this._hasRoot) return true;
+    let result = this.ns.hasRootAccess(this.name);
+    if (result) {
+      this._hasRoot = true;
+    }
+
+    return result;
   }
 
   fileExists(file) {
@@ -188,6 +230,8 @@ export class Server extends NSObject {
   }
 
   canNuke() {
+    if (this.hasRoot()) return true;
+
     return (
       this.ns.getServerNumPortsRequired(this.name) <=
       this.countAvailableCrackers()
@@ -195,6 +239,8 @@ export class Server extends NSObject {
   }
 
   async nuke() {
+    if (this.hasRoot()) return;
+
     if (this.homeFileExists("BruteSSH.exe")) await this.ns.brutessh(this.name);
     if (this.homeFileExists("FTPCrack.exe")) await this.ns.ftpcrack(this.name);
     if (this.homeFileExists("SQLInject.exe"))
@@ -448,6 +494,89 @@ export class ServerScript extends Script {
       throw new Error(
         `Server "${this.serverName} - ${this.s.name}" does not exist`
       );
+    }
+  }
+}
+
+export class Process extends NSObject {
+  constructor(ns, {server, scriptRam = null, script, threads = 1, args = []}) {
+    super(ns);
+    this.script = script;
+    this.args = args;
+    this.threads = threads;
+    this.server = server;
+    this.started = false;
+
+    if (scriptRam != null) {
+      this._scriptRam = scriptRam;
+    }
+
+    this.UUID = this.uuid();
+    this.runningArgs = [...this.args, this.UUID];
+  }
+
+  isRunning() {
+    return this.ns.isRunning(
+      this.script,
+      this.server.name,
+      ...this.runningArgs
+    );
+  }
+
+  info() {
+    return `${this.script} ${JSON.stringify(this.runningArgs)} on ${
+      this.server.name
+    } T:${this.threads}`;
+  }
+
+  run() {
+    if (this.started) return;
+
+    this.setup();
+    this.pid = this.ns.exec(
+      this.script,
+      this.server.name,
+      this.threads,
+      ...this.runningArgs
+    );
+
+    if (this.pid === 0) throw new Error(`Could not start ${this.info()}`);
+    this.started = true;
+  }
+
+  ram() {
+    return this.scriptRam() * this.threads;
+  }
+
+  scriptRam() {
+    if (this._scriptRam == null) {
+      this._scriptRam = this.ns.getScriptRam(this.script);
+    }
+
+    return this._scriptRam;
+  }
+
+  kill() {
+    if (!this.pid || this.pid === 0) return;
+    return this.ns.kill(this.pid);
+  }
+
+  setup() {
+    let files = ["baseScript.js", this.script];
+    this.ns.scp(files, "home", this.server.name);
+  }
+
+  static run(ns, server, script, threads, ...args) {
+    let proc = new this(ns, server, script, threads, ...args);
+    proc.run();
+    return proc;
+  }
+
+  tail() {
+    if (this.isRunning()) {
+      this.ns.tail(this.script, this.server.name, ...this.runningArgs);
+    } else {
+      this.tlog(`Cannot tail non-running process: ${this.info()}!`);
     }
   }
 }

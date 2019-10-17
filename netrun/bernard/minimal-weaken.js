@@ -4,7 +4,7 @@ class ThisScript extends BaseScript {
   async perform() {
     let server = this.pullFirstArg();
 
-    this.log(`Weakening ${server}`);
+    // this.log(`Weakening ${server}`);
     await this.ns.weaken(server);
   }
 }

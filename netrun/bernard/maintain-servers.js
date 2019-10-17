@@ -2,12 +2,16 @@ import {BankMessaging} from "./messaging.js";
 import {BaseScript} from "./baseScript.js";
 
 const MAX_MONEY_FILE = "max-money-seen.txt";
+const DYING_FILE = "dying.txt";
 
 let targetTiers = [128, 1024, 16384, 262144, 1048576];
 
 class ThisScript extends BaseScript {
   async perform() {
     this.bank = new BankMessaging(this.ns);
+
+    // Wait for bank to startup
+    await this.sleep(1000);
 
     while (true) {
       let wallet = await this.bank.walletInfo("servers");
@@ -60,8 +64,9 @@ class ThisScript extends BaseScript {
           .sort((a, b) => this.ns.getServerRam(a) - this.ns.getServerRam(b))
           .slice(0, deleteCount);
 
+        this.setDying(toDelete);
         for (let name of toDelete) {
-          this.removeServer(name);
+          await this.removeServer(name);
         }
       }
 
@@ -80,6 +85,14 @@ class ThisScript extends BaseScript {
     }
   }
 
+  setDying(servers) {
+    this.ns.write(DYING_FILE, "not important", "w");
+    for (let server of servers) {
+      this.ns.scp([DYING_FILE], "home", server);
+    }
+    this.ns.rm(DYING_FILE, "home");
+  }
+
   buyableTiers() {
     let purchasedServers = this.ns.getPurchasedServers();
 
@@ -90,9 +103,13 @@ class ThisScript extends BaseScript {
     return targetTiers.filter(r => r >= minPurchased);
   }
 
-  removeServer(name) {
+  async removeServer(name) {
     this.log(`Deleting ${name}`);
-    this.ns.killall(name);
+
+    while (this.ns.ps(name).length > 0) {
+      await this.sleep(1000);
+    }
+
     this.ns.deleteServer(name);
   }
 

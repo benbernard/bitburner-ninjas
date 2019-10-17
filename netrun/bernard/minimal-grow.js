@@ -5,7 +5,7 @@ class ThisScript extends BaseScript {
     let server = this.pullFirstArg();
     let stock = this.pullFirstArg() === "1" ? true : false;
 
-    this.log(`Growing ${server}, stock: ${stock}`);
+    // this.log(`Growing ${server}, stock: ${stock}`);
     await this.ns.grow(server, {stock});
 
     // this.tlog(

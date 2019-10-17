@@ -170,7 +170,7 @@ function mergeIntervals(intervals, ns) {
 
   points = [...newPoints, lastPoint];
 
-  let openCount = 1;
+  let openCount = points[0][1];
   let start = points[0][0];
   let output = [];
 
