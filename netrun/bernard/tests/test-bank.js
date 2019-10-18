@@ -1,4 +1,4 @@
-import {BankScript} from "./bank.js";
+import {BankScript} from "../bank.js";
 
 function assertEqual(a, b, message) {
   if (!message) message = `${a} != ${b}`;

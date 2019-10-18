@@ -1,6 +1,5 @@
 import * as TK from "./tk.js";
 import {NSObject} from "./baseScript.js";
-import {convertToPercent} from "./utils.js";
 
 const GROW_SCRIPT = "minimal-grow.js";
 const WEAKEN_SCRIPT = "minimal-weaken.js";
