@@ -21,13 +21,14 @@ class ThisScript extends BaseScript {
     // await this.player.trainTo("hack", 50);
     // await this.player.trainTo("str", 30);
     // await this.player.trainTo("def", 30);
+    let crime = this.ns.args[0] || "homicide";
 
     while (true) {
       await this.checkStop();
       await this.upgradeHomeRam();
       await this.buyPrograms();
 
-      let result = await this.ns.commitCrime("homicide");
+      let result = await this.ns.commitCrime(crime);
       while (this.ns.isBusy()) {
         await this.sleep(100);
       }
@@ -65,11 +66,12 @@ class ThisScript extends BaseScript {
   }
 
   async upgradeHomeRam() {
-    if (this.ns.getServerRam("home")[0] < 1024) {
+    let homeRam = () => this.ns.getServerRam("home")[0];
+    if (homeRam() < 1024) {
       let cost = this.ns.getUpgradeHomeRamCost();
       while (
         this.ns.getServerMoneyAvailable("home") > cost &&
-        this.home.ram() < 1024
+        homeRam() < 1024
       ) {
         this.tlog(`Upgrading home ram`);
         await this.ns.upgradeHomeRam();

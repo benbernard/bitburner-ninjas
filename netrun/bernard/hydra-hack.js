@@ -17,6 +17,7 @@ class ThisScript extends TK.Script {
     super(...args);
     this.activeAttacks = {};
     this.extraProcesses = {};
+    this.hackingHosts = new Map();
   }
 
   async perform() {
@@ -153,11 +154,6 @@ class ThisScript extends TK.Script {
       servers.forEach(server => server.ignoreProcess(...EXTRA_PROCESS_CONFIG));
     }
 
-    let home = servers.find(s => s.name === "home");
-    home.maxRamUsedPercentage = 0.75;
-    // home.maxRamUsedPercentage = 0.5;
-    // home.maxRamUsedPercentage = 0;
-
     return servers.sort((a, b) => b.availableRam() - a.availableRam());
   }
 
@@ -177,6 +173,49 @@ class ThisScript extends TK.Script {
     }
   }
 
+  addHackingTarget(server) {
+    if (!this.hackingHosts.has(server)) this.hackingHosts.set(server, 0);
+  }
+
+  incrementHackingTarget(server, by = 1) {
+    let hacks = this.hackingHosts.get(server);
+    this.hackingHosts.set(server, hacks + by);
+  }
+
+  findTarget(orderedTargets) {
+    for (let [server, _] of this.hackingHosts) {
+      if (!(server.name in this.activeAttacks)) {
+        return server;
+      }
+    }
+
+    let hackableTargets = orderedTargets.filter(
+      server => server.security() - server.minSecurity() < 3
+    );
+
+    let bestHackable = hackableTargets[0];
+
+    if (bestHackable && !(bestHackable.name in this.activeAttacks)) {
+      this.addHackingTarget(bestHackable);
+      return bestHackable;
+    }
+
+    let firstIndex = 0;
+    for (let i = 0; i < orderedTargets.length; i++) {
+      firstIndex = i;
+      let target = orderedTargets[i];
+      if (!(target.name in this.activeAttacks)) {
+        break;
+      }
+    }
+
+    let target = orderedTargets[firstIndex];
+    if (target.name in this.activeAttacks) {
+      return false;
+    }
+    return target;
+  }
+
   async attackOne() {
     let skippedTargets = [];
     let foodTask = this.determineTask(this.server("joesguns"));
@@ -186,34 +225,35 @@ class ThisScript extends TK.Script {
 
     let targets = await this.actionTargets(skippedTargets);
 
-    let lastIndex;
-    for (let i = 0; i < targets.length; i++) {
-      lastIndex = i;
-      let target = targets[i];
-      if (target.name in this.activeAttacks) {
-        continue;
-      } else {
-        break;
-      }
-    }
-    let target = targets[lastIndex];
-
-    // If we selected the last index, it may already be in flight
-    if (!target || target.name in this.activeAttacks) {
-      return false;
-    }
+    let target = this.findTarget(targets);
+    if (!target) return false;
 
     this.log(`Found target: ${target.name}`);
 
     let evictableAttacks = targets
-      .slice(lastIndex + 1)
+      .slice(targets.indexOf(target) + 1)
       .filter(name => name in this.activeAttacks)
       .map(name => this.activeAttacks[name]);
 
     let task = this.determineTask(target);
+    if (task === TASKS.HACK && this.hackingHosts.has(target)) {
+      this.incrementHackingTarget(target);
+      if (this.hackingHosts.get(target) > 10) {
+        this.hackingHosts.delete(target);
+      }
+    }
 
     let attack = new TargetAttack(this.ns, target, task);
     await attack.start(await this.workers(), evictableAttacks);
+
+    if (
+      !attack.hasAnyRuns() &&
+      this.hackingHosts.has(target) &&
+      task === TASKS.HACK
+    ) {
+      // If we didn't actually run anything, remove the hacking target increment
+      this.incrementHackingTarget(target, -1);
+    }
 
     this.activeAttacks[target.name] = attack;
     return true;
@@ -391,6 +431,10 @@ class TargetAttack extends NSObject {
       desiredThreads = await this.useAvailableRam(workers, desiredThreads);
       if (desiredThreads === 0) break;
     }
+  }
+
+  hasAnyRuns() {
+    return this.runningProcesses.length > 0;
   }
 
   async useAvailableRam(workers, desiredThreads) {

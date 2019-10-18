@@ -1,22 +1,8 @@
 import {BaseScript, NSObject} from "./baseScript.js";
+import {CRIMES} from "./gameConstants.js";
 
 const STOP_FILE = "stop_file.txt";
 const TOGGLE_FILE = "toggle_file.txt";
-
-export const CRIMES = new Set([
-  "shoplift",
-  "rob store",
-  "mug",
-  "larceny",
-  "deal drugs",
-  "bond forgery",
-  "traffick arms",
-  "homicide",
-  "grand theft auto",
-  "kidnap",
-  "assassinate",
-  "heist",
-]);
 
 const SECTOR12 = "Sector-12";
 const VOLHAVEN = "Volhaven";
@@ -62,105 +48,13 @@ const TRAINING_TYPES = {
   charisma: "university",
 };
 
-export const CITIES = new Set([
-  "Aevum",
-  "Sector-12",
-  "New Tokyo",
-  "Chongqing",
-  "Ishima",
-  "Volhaven",
-]);
-
-export const COMPANIES = {
-  AeroCorp: "Aevum",
-  "Bachman & Associates": "Aevum",
-  "Clarke Incorporated": "Aevum",
-  ECorp: "Aevum",
-  "Fulcrum Technologies": "Aevum",
-  "Galactic Cybersystems": "Aevum",
-  "NetLink Technologies": "Aevum",
-  "Aevum Police Headquarters": "Aevum",
-  "Rho Construction": "Aevum",
-  "Watchdog Security": "Aevum",
-
-  "KuaiGong International": "Chongqing",
-  "Solaris Space Systems": "Chongqing",
-
-  "Alpha Enterprises": "Sector-12",
-  "Blade Industries": "Sector-12",
-  "Central Intelligence Agency": "Sector-12",
-  "Carmichael Security": "Sector-12",
-  "Sector-12 City Hall": "Sector-12",
-  DeltaOne: "Sector-12",
-  FoodNStuff: "Sector-12",
-  "Four Sigma": "Sector-12",
-  "Icarus Microsystems": "Sector-12",
-  "Joe's Guns": "Sector-12",
-  MegaCorp: "Sector-12",
-  "National Security Agency": "Sector-12",
-  "Universal Energy": "Sector-12",
-
-  DefComm: "New Tokyo",
-  "Global Pharmaceuticals": "New Tokyo",
-  "Noodle Bar": "New Tokyo",
-  VitaLife: "New Tokyo",
-
-  "Nova Medical": "Ishima",
-  "Omega Software": "Ishima",
-  "Storm Technologies": "Ishima",
-
-  CompuTek: "Volhaven",
-  "Helios Labs": "Volhaven",
-  LexoCorp: "Volhaven",
-  NWO: "Volhaven",
-  "OmniTek Incorporated": "Volhaven",
-  "Omnia Cybersystems": "Volhaven",
-  "SysCore Securities": "Volhaven",
-  "ZB Institute of Technology": "Volhaven",
-};
-
-export const FACTIONS = new Set([
-  "Illuminati",
-  "Daedalus",
-  "The Covenant",
-  "ECorp",
-  "MegaCorp",
-  "Bachman & Associates",
-  "Blade Industries",
-  "NWO",
-  "Clarke Incorporated",
-  "OmniTek Incorporated",
-  "Four Sigma",
-  "KuaiGong International",
-  "Fulcrum Secret Technologies",
-  "BitRunners",
-  "The Black Hand",
-  "NiteSec",
-  "Aevum",
-  "Chongqing",
-  "Ishima",
-  "New Tokyo",
-  "Sector-12",
-  "Volhaven",
-  "Speakers for the Dead",
-  "The Dark Army",
-  "The Syndicate",
-  "Silhouette",
-  "Tetrads",
-  "Slum Snakes",
-  "Netburners",
-  "Tian Di Hui",
-  "CyberSec",
-  "Bladeburners",
-]);
-
 export class Player extends NSObject {
   isBusy() {
     return this.ns.isBusy();
   }
 
   stats() {
-    return this.ns.getStats();
+    return this.info.mult;
   }
 
   info() {
@@ -187,7 +81,7 @@ export class Player extends NSObject {
   }
 
   ownedAugments() {
-    return this.ns.getOwnedAugmentations(true);
+    throw new Error("import singularityAugments");
   }
 
   validCrime(crime) {
@@ -203,7 +97,7 @@ export class Player extends NSObject {
   }
 
   getStat(stat) {
-    return this.stats()[STAT_MAP[stat]];
+    return this.ns.getStats()[STAT_MAP[stat]];
   }
 
   train(statTerm) {

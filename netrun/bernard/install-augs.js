@@ -1,5 +1,6 @@
 import * as TK from "./tk.js";
-import {FACTIONS, Player} from "./singularity.js";
+import {FACTIONS} from "./gameConstants.js";
+import {Player} from "./singularity.js";
 
 class ThisScript extends TK.Script {
   async perform() {

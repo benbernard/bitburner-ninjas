@@ -18,3 +18,40 @@ let CONVERSIONS = {
   m: "1000000",
   k: "1000",
 };
+
+export function convertToPercent(num) {
+  let converted = round2(num * 100);
+  return `${converted}%`;
+}
+
+export function round2(num) {
+  return Math.floor(num * 100) / 100;
+}
+
+export function json(obj) {
+  return JSON.stringify(obj);
+}
+
+export let _ = {
+  isFunction(val) {
+    return typeof val === "function";
+  },
+
+  constant(val) {
+    return () => val;
+  },
+
+  keys(obj) {
+    return Object.keys(obj);
+  },
+
+  values(obj) {
+    return Object.values(obj);
+  },
+
+  * hashEach(obj) {
+    for (let key of _.keys(obj)) {
+      yield [key, obj[key]];
+    }
+  },
+};

@@ -1,6 +1,6 @@
-import * as TK from "./tk.js";
+import {BaseScript, NSObject} from "./baseScript.js";
 
-class ThisScript extends TK.Script {
+class ThisScript extends BaseScript {
   async perform() {
     this.ns.tprint(`Done updating!`);
     await this.ns.exit();

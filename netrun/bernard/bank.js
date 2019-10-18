@@ -20,15 +20,43 @@ export class BankScript extends BaseScript {
     if (this.doEventLoop) await this.eventLoop();
   }
 
+  handleWithdrawals(handle) {
+    let withdraws = [];
+    let data = [];
+
+    for (let req of handle.data) {
+      if (req.data.type === BankMessaging.WITHDRAW) {
+        withdraws.push(req);
+      } else {
+        data.push(req);
+      }
+    }
+
+    handle.data = data;
+
+    for (let req of withdraws) {
+      let wallet = this.wallet(req.data.wallet);
+      let amount = req.data.amount;
+      this.state.allocatedMoney -= amount;
+      wallet.amount -= amount;
+    }
+
+    for (let req of withdraws) {
+      this.messaging.sendResponse(req, {success: true});
+    }
+  }
+
   async eventLoop() {
     let handle = this.messaging.requestHandle();
     while (true) {
+      this.handleWithdrawals(handle);
       this.update();
 
       while (handle.data.length > 0) {
         let message = handle.data.shift();
+
         try {
-          this.handleRequest(message);
+          await this.handleRequest(message);
         } catch (e) {
           this.tlog(
             `Error handling bank message: ${e instanceof String ? e : e.stack}`

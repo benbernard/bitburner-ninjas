@@ -66,7 +66,8 @@ class ThisScript extends BaseScript {
 
         this.setDying(toDelete);
         for (let name of toDelete) {
-          await this.removeServer(name);
+          await this.replaceServer(name, tier);
+          purchaseCount--;
         }
       }
 
@@ -103,14 +104,17 @@ class ThisScript extends BaseScript {
     return targetTiers.filter(r => r >= minPurchased);
   }
 
-  async removeServer(name) {
+  async replaceServer(name, tier) {
     this.log(`Deleting ${name}`);
 
     while (this.ns.ps(name).length > 0) {
       await this.sleep(1000);
     }
 
+    this.tlog(`Repurchaseing ${name} at ${tier}`);
     this.ns.deleteServer(name);
+    this.ns.purchaseServer(name, tier);
+    await this.bank.withdraw("servers", this.tierCost(tier));
   }
 
   usableMoney(maxMoney) {

@@ -1,15 +1,16 @@
-import * as TK from "./tk.js";
+import {BaseScript, NSObject} from "./baseScript.js";
 import {
   CITIES,
   COMPANIES,
-  CRIMES,
-  FACTIONS,
-  Player,
-  STAT_MAP,
-} from "./singularity.js";
-import {NSObject} from "./baseScript.js";
+  canonicalCompany,
+  canonicalCrime,
+  canonicalFaction,
+  canonicalStat,
+} from "./gameConstants.js";
+import {Player} from "./singularity.js";
+import {convertToPercent} from "./utils.js";
 
-class ThisScript extends TK.Script {
+class ThisScript extends BaseScript {
   get player() {
     return new Player(this.ns);
   }
@@ -37,7 +38,7 @@ class ThisScript extends TK.Script {
 
     for (let action of actions) {
       this.tlog(`Running ${action.info()}`);
-      await action.run();
+      await action.perform();
     }
 
     this.tlog(`Done with offline tasks at ${this.logDate()}`);
@@ -86,7 +87,7 @@ class Action extends NSObject {
 
   async setup() {}
 
-  async run() {
+  async perform() {
     await this.setup();
     // Runs until target is met
     while (!this.targetMet()) {
@@ -173,7 +174,10 @@ class CrimeAction extends Action {
   }
 
   info() {
-    return `Commit crime ${this.crime} looped`;
+    let chance = this.ns.getCrimeChance(this.crime);
+    return `Commit crime ${
+      this.crime
+    } looped, success chance: ${convertToPercent(chance)}`;
   }
 
   static create(ns, crimeTerm = "homicide") {
@@ -185,7 +189,7 @@ class StatTrain extends Action {
   constructor(ns, stat, target) {
     super(ns);
 
-    this.stat = stat;
+    this.stat = canonicalStat(stat);
     this.target = target;
   }
 
@@ -241,7 +245,7 @@ class CompanyFullAction extends CompanyAction {
     this.company = company;
   }
 
-  async run() {
+  async perform() {
     while (this.ns.applyToCompany(this.company, "software"));
     await this.ns.workForCompany(this.company);
     await this.player.waitUntilNotBusy(30000);
@@ -283,37 +287,6 @@ class CompanyFavorAction extends CompanyAction {
 }
 
 export let main = ThisScript.runner();
-
-let validStats = new Set(Object.keys(STAT_MAP));
-
-function matcher(term, set) {
-  if (set.has(term)) return term;
-
-  for (let item of set) {
-    if (item.toLowerCase().startsWith(term.toLowerCase())) return item;
-  }
-
-  let regex = new RegExp(term);
-  for (let item of set) {
-    if (item.match(regex)) return item;
-  }
-
-  for (let item of set) {
-    if (item.toLowerCase().match(regex)) return item;
-  }
-}
-
-function canonicalCompany(term) {
-  return matcher(term, new Set(Object.keys(COMPANIES)));
-}
-
-function canonicalFaction(term) {
-  return matcher(term, FACTIONS);
-}
-
-function canonicalCrime(term) {
-  return matcher(term, CRIMES);
-}
 
 let ACTION_TYPES = {
   stat: StatTrain,

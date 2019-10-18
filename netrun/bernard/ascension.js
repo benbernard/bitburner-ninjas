@@ -1,5 +1,7 @@
 import * as TK from "./tk.js";
 import * as constants from "./gameConstants.js";
+import * as singularityAugments from "./singularityAugments.js";
+
 import {NSObject} from "./baseScript.js";
 import {Player} from "./singularity.js";
 

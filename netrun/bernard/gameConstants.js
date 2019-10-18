@@ -1160,6 +1160,7 @@ export const AUGMENTS = {
     },
   },
 };
+/* eslint-enable camelcase */
 
 export function augments() {
   return Object.values(AUGMENTS).map(info => new Augment(info));
@@ -1207,4 +1208,153 @@ class Augment {
     return `${this.name} ${bonusInfo.join(" ")}`;
   }
 }
-/* eslint-enable camelcase */
+
+export function matcher(term, set) {
+  if (set.has(term)) return term;
+
+  for (let item of set) {
+    if (item.toLowerCase().startsWith(term.toLowerCase())) return item;
+  }
+
+  let regex = new RegExp(term);
+  for (let item of set) {
+    if (item.match(regex)) return item;
+  }
+
+  for (let item of set) {
+    if (item.toLowerCase().match(regex)) return item;
+  }
+}
+
+export function canonicalCompany(term) {
+  return matcher(term, new Set(Object.keys(COMPANIES)));
+}
+
+export function canonicalFaction(term) {
+  return matcher(term, FACTIONS);
+}
+
+export function canonicalCrime(term) {
+  return matcher(term, CRIMES);
+}
+
+export function canonicalStat(term) {
+  if (term === "chr") return "charisma";
+  return matcher(term, STATS);
+}
+
+export const STATS = new Set([
+  "strength",
+  "dexterity",
+  "agility",
+  "defense",
+  "hacking",
+  "charisma",
+]);
+
+export const CRIMES = new Set([
+  "shoplift",
+  "rob store",
+  "mug",
+  "larceny",
+  "deal drugs",
+  "bond forgery",
+  "traffick arms",
+  "homicide",
+  "grand theft auto",
+  "kidnap",
+  "assassinate",
+  "heist",
+]);
+
+export const CITIES = new Set([
+  "Aevum",
+  "Sector-12",
+  "New Tokyo",
+  "Chongqing",
+  "Ishima",
+  "Volhaven",
+]);
+
+export const COMPANIES = {
+  AeroCorp: "Aevum",
+  "Bachman & Associates": "Aevum",
+  "Clarke Incorporated": "Aevum",
+  ECorp: "Aevum",
+  "Fulcrum Technologies": "Aevum",
+  "Galactic Cybersystems": "Aevum",
+  "NetLink Technologies": "Aevum",
+  "Aevum Police Headquarters": "Aevum",
+  "Rho Construction": "Aevum",
+  "Watchdog Security": "Aevum",
+
+  "KuaiGong International": "Chongqing",
+  "Solaris Space Systems": "Chongqing",
+
+  "Alpha Enterprises": "Sector-12",
+  "Blade Industries": "Sector-12",
+  "Central Intelligence Agency": "Sector-12",
+  "Carmichael Security": "Sector-12",
+  "Sector-12 City Hall": "Sector-12",
+  DeltaOne: "Sector-12",
+  FoodNStuff: "Sector-12",
+  "Four Sigma": "Sector-12",
+  "Icarus Microsystems": "Sector-12",
+  "Joe's Guns": "Sector-12",
+  MegaCorp: "Sector-12",
+  "National Security Agency": "Sector-12",
+  "Universal Energy": "Sector-12",
+
+  DefComm: "New Tokyo",
+  "Global Pharmaceuticals": "New Tokyo",
+  "Noodle Bar": "New Tokyo",
+  VitaLife: "New Tokyo",
+
+  "Nova Medical": "Ishima",
+  "Omega Software": "Ishima",
+  "Storm Technologies": "Ishima",
+
+  CompuTek: "Volhaven",
+  "Helios Labs": "Volhaven",
+  LexoCorp: "Volhaven",
+  NWO: "Volhaven",
+  "OmniTek Incorporated": "Volhaven",
+  "Omnia Cybersystems": "Volhaven",
+  "SysCore Securities": "Volhaven",
+  "ZB Institute of Technology": "Volhaven",
+};
+
+export const FACTIONS = new Set([
+  "Illuminati",
+  "Daedalus",
+  "The Covenant",
+  "ECorp",
+  "MegaCorp",
+  "Bachman & Associates",
+  "Blade Industries",
+  "NWO",
+  "Clarke Incorporated",
+  "OmniTek Incorporated",
+  "Four Sigma",
+  "KuaiGong International",
+  "Fulcrum Secret Technologies",
+  "BitRunners",
+  "The Black Hand",
+  "NiteSec",
+  "Aevum",
+  "Chongqing",
+  "Ishima",
+  "New Tokyo",
+  "Sector-12",
+  "Volhaven",
+  "Speakers for the Dead",
+  "The Dark Army",
+  "The Syndicate",
+  "Silhouette",
+  "Tetrads",
+  "Slum Snakes",
+  "Netburners",
+  "Tian Di Hui",
+  "CyberSec",
+  "Bladeburners",
+]);

@@ -11,11 +11,15 @@ export class Messaging extends NSObject {
   }
 
   requestHandle() {
-    return this.ns.getPortHandle(this.requestPort);
+    if (!this._requestHandle)
+      this._requestHandle = this.ns.getPortHandle(this.requestPort);
+    return this._requestHandle;
   }
 
   responseHandle() {
-    return this.ns.getPortHandle(this.responsePort);
+    if (!this._responseHandle)
+      this._responseHandle = this.ns.getPortHandle(this.responsePort);
+    return this._responseHandle;
   }
 
   createMessage(data, metadata = {}) {
@@ -47,9 +51,11 @@ export class Messaging extends NSObject {
     while (true) {
       count++;
       if (count > limit) {
-        throw new Error(
-          `TIMEOUT: No response received for ${JSON.stringify(request)}`
-        );
+        let msg = `TIMEOUT: No response received for ${JSON.stringify(
+          request
+        )} handleData: ${JSON.stringify(handle.data)}`;
+        this.log(msg);
+        throw new Error(msg);
       }
 
       await this.sleep(100);
@@ -136,6 +142,14 @@ export class BankMessaging extends Messaging {
   clear() {
     return this.sendAndWait({type: BankMessaging.CLEAR});
   }
+
+  withdraw(wallet, amount) {
+    return this.sendAndWait({
+      type: BankMessaging.WITHDRAW,
+      wallet,
+      amount,
+    });
+  }
 }
 
 // Message types
@@ -148,3 +162,4 @@ BankMessaging.ALL_WALLETS = "all_wallets";
 BankMessaging.CLEAR = "clear";
 BankMessaging.STOCK_BUY = "stock_buy";
 BankMessaging.SELL_STOCKS = "sell_stocks";
+BankMessaging.WITHDRAW = "withdraw";

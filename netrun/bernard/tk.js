@@ -1,25 +1,8 @@
 import {BaseScript, NSObject} from "./baseScript.js";
+import {_} from "./utils.js";
 import traverse from "./traverse.js";
 
 const DYING_FILE = "dying.txt";
-
-export let _ = {
-  isFunction(val) {
-    return typeof val === "function";
-  },
-
-  constant(val) {
-    return () => val;
-  },
-
-  keys(obj) {
-    return Object.keys(obj);
-  },
-
-  values(obj) {
-    return Object.values(obj);
-  },
-};
 
 const LIBRARY_FILES = ["baseScript.js", "tk.js"];
 
@@ -28,7 +11,7 @@ export class Server extends NSObject {
     super(ns);
     this.name = name;
     this.parent = parent;
-    this.maxRamUsedPercentage = 1;
+    this.reservedRam = name === "home" ? 200 : 0;
     this.ignoredProcesses = [];
   }
 
@@ -119,8 +102,7 @@ export class Server extends NSObject {
     let [total, used] = this.ns.getServerRam(this.name);
     used -= this.ignoredProcessesRam();
 
-    let savedRam = total * (1 - this.maxRamUsedPercentage);
-    return [total, Math.min(used + savedRam, total)];
+    return [total, Math.min(used + this.reservedRam, total)];
   }
 
   availableRam() {
@@ -558,7 +540,12 @@ export class Process extends NSObject {
       ...this.runningArgs
     );
 
-    if (this.pid === 0) throw new Error(`Could not start ${this.info()}`);
+    if (this.pid === 0)
+      throw new Error(
+        `Could not start ${this.info()}, needs ram: ${this.ram()} free: ${this.server.availableRam()}, ps: ${JSON.stringify(
+          this.server.ps()
+        )}`
+      );
     this.started = true;
   }
 

@@ -1,17 +1,16 @@
 import * as TK from "./tk.js";
 import {NSObject} from "./baseScript.js";
+import {convertToPercent} from "./utils.js";
 
 const GROW_SCRIPT = "minimal-grow.js";
 const WEAKEN_SCRIPT = "minimal-weaken.js";
 const HACK_SCRIPT = "minimal-hack.js";
 
-const STATUS_FILE = "firestorm-status.txt";
+const STATUS_FILE = "firegale-status.txt";
 
 class ThisScript extends TK.Script {
   async allServers() {
     let servers = await this.home.reachableServers({}, true);
-    let home = servers.find(s => s.name === "home");
-    home.maxRamUsedPercentage = 0.75;
     return servers.filter(s => s.canNuke());
   }
 
@@ -235,7 +234,7 @@ class ThisScript extends TK.Script {
         }
 
         await this.runAttacks(now);
-        // this.updateStatus();
+        this.updateStatus();
       } catch (e) {
         if (e instanceof String && e.indexOf("Invalid IP or hostname") !== -1) {
           this.log(`Caught ${e}, ignoring`);
@@ -378,7 +377,19 @@ class DelayedAttack extends NSObject {
   }
 
   info() {
-    return `DelayedAttack ${this.script} P:${this.priority} T:${this.threads} Start:${this.startTime} Duration: ${this.duration}`;
+    let now = this.ns.getTimeSinceLastAug();
+    let start = Math.floor((this.startTime - now) / 1000);
+    let duration = Math.floor(this.duration / 1000);
+
+    let threadInfo = [];
+    for (let serverName of Object.keys(this.scheduledThreads)) {
+      let info = this.scheduledThreads[serverName];
+      threadInfo.push(`${serverName}=${info.threads}`);
+    }
+
+    return `DelayedAttack ${this.script} P:${this.priority} T:${
+      this.threads
+    } S:${start} D:${duration} Scheudled:${threadInfo.join(",")}`;
   }
 
   runIfTime(now, workers, otherAttacks) {
@@ -470,7 +481,13 @@ class DelayedAttack extends NSObject {
       this.procs.push(this.createProc(info.threads, info.server));
     }
 
-    this.procs.forEach(p => p.run());
+    try {
+      this.procs.forEach(p => p.run());
+    } catch (e) {
+      this.log(`ERROR Info: ${e.stack}`);
+      this.log(`Ram manager: ${JSON.stringify(this.ramManager.serverRam)}`);
+      throw e;
+    }
     return true;
   }
 
@@ -803,7 +820,7 @@ class RamManager extends NSObject {
     if (server.name in this.serverRam) {
       let info = this.serverRam[server.name];
       if (info.dying) return 0;
-      return info.available;
+      return Math.max(info.available - 1, 0); // add padding for floating point errors
     } else {
       throw new Error(`Unkown server in getAvailableRam: ${server.name}`);
     }
@@ -841,7 +858,6 @@ class RamManager extends NSObject {
     let threads = 0;
     for (let server of this.servers) {
       let available = this.getAvailableRam(server);
-      if (available <= 2) continue;
       threads += Math.floor(available / ramPerThread);
     }
     return threads;
@@ -862,14 +878,13 @@ class RamManager extends NSObject {
 
   scheduleAttack(delayedAttack) {
     let unallocatedThreads = delayedAttack.threads;
-    let ramPerThread = scriptRam(this.ns, delayedAttack.script);
+    let ramPerThread = delayedAttack.ramPerThread();
     if (this.threadsForServers(ramPerThread) < unallocatedThreads) {
       this.log(`RamManager: out of ram`);
       return false;
     }
 
     let currentServer = this.selectedServer;
-    if (this.getAvailableRam(currentServer) <= 2) this.selectNextServer();
 
     let serversToThreads = {};
     while (true) {

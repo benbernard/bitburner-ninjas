@@ -1,8 +1,8 @@
-import * as TK from "./tk.js";
+import {BaseScript, NSObject} from "./baseScript.js";
 import {BankMessaging} from "./messaging.js";
 import {convertStrToMoney} from "./utils.js";
 
-class ThisScript extends TK.Script {
+class ThisScript extends BaseScript {
   async perform() {
     let bank = new BankMessaging(this.ns);
     this.bank = bank;
@@ -33,6 +33,13 @@ class ThisScript extends TK.Script {
     } else if (action === "clear" || action === "infos") {
       let response = await bank.clear();
       this.tlog(`Clear response: ${JSON.stringify(response)}`);
+      await this.printAllWallets();
+    } else if (action === "withdraw") {
+      let response = await this.bank.withdraw(
+        this.args[0],
+        convertStrToMoney(this.args[1])
+      );
+      this.tlog(`Withdraw response: ${JSON.stringify(response)}`);
       await this.printAllWallets();
     } else {
       this.tlog(`Unkown bank request: ${action}`);
