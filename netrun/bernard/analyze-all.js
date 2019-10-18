@@ -1,4 +1,5 @@
 import * as TK from "./tk.js";
+import {copy} from "./utils.js";
 import {purchasedSet} from "./purchased.js";
 
 class ThisScript extends TK.Script {
@@ -23,11 +24,20 @@ class ThisScript extends TK.Script {
     let servers = [];
     await this.s.traverse(server => servers.push(server), seen);
 
-    servers
-      .filter(s => s.name.startsWith(term))
-      .forEach(s => {
+    servers = servers.filter(s => s.name.startsWith(term));
+
+    if (servers.length > 1) {
+      servers.forEach(s => {
         this.tlog(s.info(true, {asConnect: true}));
       });
+    } else if (servers.length === 1) {
+      let server = servers[0];
+      this.tlog(server.info(true, {asConnect: true}));
+      let connectString = server.path({asConnect: true});
+      copy(connectString);
+    } else {
+      this.tlog(`No matching servers for ${term}`);
+    }
   }
 
   async sortedInfo(seen) {

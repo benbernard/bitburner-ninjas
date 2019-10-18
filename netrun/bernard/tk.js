@@ -272,9 +272,9 @@ export class Server extends NSObject {
 
   path(options = {}) {
     let parentPath = "";
-    if (this.parent) parentPath = this.parent.path(options);
+    if (this.parent) parentPath = this.parent.path(options) + "; ";
     if (options.asConnect) {
-      return `${parentPath}; connect ${this.name}`;
+      return `${parentPath}connect ${this.name}`;
     } else {
       return `${parentPath} -> ${this.name}`;
     }

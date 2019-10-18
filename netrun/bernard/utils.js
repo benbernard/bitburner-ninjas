@@ -28,8 +28,16 @@ export function round2(num) {
   return Math.floor(num * 100) / 100;
 }
 
-export function json(obj) {
-  return JSON.stringify(obj);
+export function json(...args) {
+  return JSON.stringify(...args);
+}
+
+export async function copy(text) {
+  let result = await navigator.permissions.query({name: "clipboard-write"});
+  if (result.state !== "granted")
+    throw new Error("No Permission for clipboard: ${result.state}");
+
+  await navigator.clipboard.writeText(text);
 }
 
 export let _ = {

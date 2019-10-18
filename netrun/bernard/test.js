@@ -1,14 +1,15 @@
 import BaseScript from "./baseScript.js";
+import {json} from "./utils.js";
 
 class ThisScript extends BaseScript {
   async perform() {
-    try {
-      this.ns.isRunning("minimal-grow.js", "hydra-ben", "foodnstuff");
-    } catch (e) {
-      debugger;
-      this.tlog(`caught error: ${e.message}`);
-      throw e;
-    }
+    this.tlog(document);
+    this.tlog(navigator);
+    let result = await navigator.permissions.query({name: "clipboard-write"});
+    this.tlog(result.state);
+
+    let info = await navigator.clipboard.writeText("foo");
+    this.tlog(json(info));
   }
 }
 
