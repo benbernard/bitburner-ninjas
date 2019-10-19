@@ -1,4 +1,5 @@
 import {BaseScript, NSObject} from "./baseScript.js";
+import {addOptionButton} from "./utils.js";
 
 let programs = [
   "BruteSSH.exe",
@@ -13,7 +14,12 @@ const STOP_FILE = "stop_file.txt";
 
 class ThisScript extends BaseScript {
   async perform() {
-    await this.ns.wget("http://localhost:3000/toggleStop/no", TOGGLE_FILE);
+    this.stopped = false;
+    this.finally = addOptionButton("Stop Loop", () => {
+      this.stopped = true;
+      this.finally();
+    });
+
     // this.player = new Player(this.ns);
     // await this.player.initPlayerLoop();
 
@@ -29,18 +35,15 @@ class ThisScript extends BaseScript {
       await this.buyPrograms();
 
       let result = await this.ns.commitCrime(crime);
-      while (this.ns.isBusy()) {
+      while (this.ns.isBusy() && !this.stopped) {
         await this.sleep(100);
       }
     }
   }
 
   async checkStop() {
-    await this.ns.wget("http://localhost:3000/shouldStop", STOP_FILE);
-    let contents = await this.ns.read(STOP_FILE);
-    if (contents.toLowerCase() === "yes") {
-      await this.exit(`Stopped Actions by Server`);
-    }
+    if (!this.stopped) return;
+    await this.exit(`Stopped Actions by Server`);
   }
 
   buyPrograms() {

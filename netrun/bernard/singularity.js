@@ -167,10 +167,13 @@ export class Player extends NSObject {
 
   initPlayerLoop() {
     this.stopped = false;
-    return addOptionButton("Stop Loop", () => {
+    let remove = addOptionButton("Stop Loop", () => {
       this.stopped = true;
       this.stop();
+      remove();
     });
+
+    return remove;
   }
 
   async checkStop() {
