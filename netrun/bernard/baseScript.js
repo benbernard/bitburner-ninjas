@@ -113,7 +113,12 @@ export default class BaseScript extends NSObject {
     let self = this;
     return async function (ns) {
       let inst = new self(ns);
-      await inst.perform();
+      try {
+        await inst.perform();
+      } finally {
+        console.log(inst.finally);
+        if (inst.finally) inst.finally();
+      }
     };
   }
 }

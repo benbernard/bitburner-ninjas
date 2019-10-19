@@ -40,6 +40,31 @@ export async function copy(text) {
   await navigator.clipboard.writeText(text);
 }
 
+export function addOptionButton(name, fn) {
+  let id = `option-button-${name}`;
+  if (document.getElementById(id)) {
+    document.getElementById(id).remove();
+  }
+
+  let options = document.getElementsByClassName("character-quick-options")[0];
+  let button = document.createElement("button");
+
+  button.id = id;
+  button.className = "character-overview-btn";
+  button.style = "margin-top: 5px;";
+
+  button.innerText = name;
+  button.addEventListener("click", () => {
+    fn();
+  });
+
+  options.appendChild(button);
+
+  return () => {
+    button.remove();
+  };
+}
+
 export let _ = {
   isFunction(val) {
     return typeof val === "function";

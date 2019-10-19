@@ -1,5 +1,6 @@
 import {BaseScript, NSObject} from "./baseScript.js";
 import {CRIMES} from "./gameConstants.js";
+import {addOptionButton} from "./utils.js";
 
 const STOP_FILE = "stop_file.txt";
 const TOGGLE_FILE = "toggle_file.txt";
@@ -164,16 +165,22 @@ export class Player extends NSObject {
     return this.ns.stopAction();
   }
 
-  async initPlayerLoop() {
-    await this.ns.wget("http://localhost:3000/toggleStop/no", TOGGLE_FILE);
+  initPlayerLoop() {
+    this.stopped = false;
+    return addOptionButton("Stop Loop", () => {
+      this.stopped = true;
+      this.stop();
+    });
   }
 
   async checkStop() {
-    await this.ns.wget("http://localhost:3000/shouldStop", STOP_FILE);
-    let contents = await this.ns.read(STOP_FILE);
-    if (contents.toLowerCase() === "yes") {
+    if (this.stopped) {
       await this.stop();
       await this.exit(`Stopped Actions by Server`);
+    } else if (this.stopped !== false) {
+      throw new Error(
+        `Cannot use checkStop without calling initPlayerLoop first stopped: ${this.stopped}`
+      );
     }
   }
 }

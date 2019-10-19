@@ -12,12 +12,12 @@ import {convertToPercent} from "./utils.js";
 
 class ThisScript extends BaseScript {
   get player() {
-    return new Player(this.ns);
+    if (!this._player) this._player = new Player(this.ns);
+    return this._player;
   }
 
   async perform() {
     let actions = this.makeActions(this.args);
-    await this.player.initPlayerLoop();
 
     let count = 1;
     for (let action of actions) {
@@ -35,6 +35,8 @@ class ThisScript extends BaseScript {
       `About to start offline efforts, summary:<br><br>${actionMessages}`
     );
     if (!doIt) await this.exit(`Cancelling...`);
+
+    this.finally = this.player.initPlayerLoop();
 
     for (let action of actions) {
       this.tlog(`Running ${action.info()}`);
@@ -57,7 +59,11 @@ class ThisScript extends BaseScript {
       let canonicalAction = canonicalActions[type];
       if (!canonicalAction) throw new Error(`Unknown action type: ${type}`);
 
-      return ACTION_TYPES[canonicalAction].create(this.ns, ...args);
+      return ACTION_TYPES[canonicalAction].create(
+        this.ns,
+        this.player,
+        ...args
+      );
     });
   }
 }
@@ -76,13 +82,13 @@ let canonicalActions = {
 };
 
 class Action extends NSObject {
-  targetMet() {
-    return this.retrieveLevel() >= this.target;
+  constructor(ns, player) {
+    super(ns);
+    this.player = player;
   }
 
-  get player() {
-    if (!this._player) this._player = new Player(this.ns);
-    return this._player;
+  targetMet() {
+    return this.retrieveLevel() >= this.target;
   }
 
   async setup() {}
@@ -104,8 +110,8 @@ class Action extends NSObject {
 }
 
 class FactionAction extends Action {
-  constructor(ns, factionTerm, target) {
-    super(ns);
+  constructor(ns, player, factionTerm, target) {
+    super(ns, player);
 
     this.faction = canonicalFaction(factionTerm);
     this.target = target;
@@ -124,14 +130,14 @@ class FactionAction extends Action {
     await this.sleep(10000);
   }
 
-  static create(ns, name, goalType, ...args) {
+  static create(ns, player, name, goalType, ...args) {
     let faction = canonicalFaction(name);
     if (!faction) throw new Error(`Bad faction name: ${name}`);
 
     if (goalType === "rep" || goalType === "r") {
-      return new FactionRepAction(ns, faction, ...args);
+      return new FactionRepAction(ns, player, faction, ...args);
     } else if (goalType === "favor" || goalType === "f") {
-      return new FactionFavorAction(ns, faction, ...args);
+      return new FactionFavorAction(ns, player, faction, ...args);
     }
   }
 }
@@ -160,8 +166,8 @@ class FactionFavorAction extends FactionAction {
 }
 
 class CrimeAction extends Action {
-  constructor(ns, crime = "homicide") {
-    super(ns);
+  constructor(ns, player, crime = "homicide") {
+    super(ns, player);
     this.crime = crime;
   }
 
@@ -180,14 +186,14 @@ class CrimeAction extends Action {
     } looped, success chance: ${convertToPercent(chance)}`;
   }
 
-  static create(ns, crimeTerm = "homicide") {
-    return new this(ns, canonicalCrime(crimeTerm));
+  static create(ns, player, crimeTerm = "homicide") {
+    return new this(ns, player, canonicalCrime(crimeTerm));
   }
 }
 
 class StatTrain extends Action {
-  constructor(ns, stat, target) {
-    super(ns);
+  constructor(ns, player, stat, target) {
+    super(ns, player);
 
     this.stat = canonicalStat(stat);
     this.target = target;
@@ -207,8 +213,8 @@ class StatTrain extends Action {
 }
 
 class CompanyAction extends Action {
-  constructor(ns, company, target) {
-    super(ns);
+  constructor(ns, player, company, target) {
+    super(ns, player);
     this.company = company;
     this.target = target;
   }
@@ -225,14 +231,14 @@ class CompanyAction extends Action {
     await this.sleep(10000);
   }
 
-  static create(ns, name, type, target) {
+  static create(ns, player, name, type, target) {
     let company = canonicalCompany(name);
     if (!company) throw new Error(`No company for ${name}`);
 
     if (type === "rep" || type === "r") {
-      return new CompanyRepAction(ns, company, target);
+      return new CompanyRepAction(ns, player, company, target);
     } else if (type === "favor" || type === "f") {
-      return new CompanyFavorAction(ns, company, target);
+      return new CompanyFavorAction(ns, player, company, target);
     } else {
       throw new Error(`Unknown goal type: ${type} for ${company}`);
     }
@@ -240,8 +246,8 @@ class CompanyAction extends Action {
 }
 
 class CompanyFullAction extends CompanyAction {
-  constructor(ns, company) {
-    super(ns);
+  constructor(ns, player, company) {
+    super(ns, player);
     this.company = company;
   }
 
@@ -255,11 +261,11 @@ class CompanyFullAction extends CompanyAction {
     return `Full Shift at: ${this.company}`;
   }
 
-  static create(ns, name) {
+  static create(ns, player, name) {
     let company = canonicalCompany(name);
     if (!company) throw new Error(`No company for ${name}`);
 
-    return new this(ns, name);
+    return new this(ns, player, name);
   }
 }
 
