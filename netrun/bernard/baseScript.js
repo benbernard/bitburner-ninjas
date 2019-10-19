@@ -1,5 +1,4 @@
-// This class must not have any ns calls in it (besides print and tprint), as
-// its directly used by the minimal-* scripts.  Be careful not to add any
+// This class must not have any ns calls in it (besides print and tprint), as its directly used by the minimal-* scripts.  Be careful not to add any
 // methods that overlap NS.* names
 const USE_TPRINT_FOR_LOG = false;
 // const USE_TPRINT_FOR_LOG = true;
@@ -109,6 +108,20 @@ export default class BaseScript extends NSObject {
     this.ns.tprint("Subclass must implement2");
   }
 
+  addFinally(fn) {
+    if (!this.finalHandlers) this.finalHandlers = [];
+    this.finalHandlers.push(fn);
+  }
+
+  async doFinally() {
+    if (this.finally) await this.finally();
+    if (!this.finalHandlers) return;
+
+    for (let fn of this.finalHandlers) {
+      await fn();
+    }
+  }
+
   static runner() {
     let self = this;
     return async function (ns) {
@@ -116,8 +129,7 @@ export default class BaseScript extends NSObject {
       try {
         await inst.perform();
       } finally {
-        console.log(inst.finally);
-        if (inst.finally) inst.finally();
+        await inst.doFinally();
       }
     };
   }

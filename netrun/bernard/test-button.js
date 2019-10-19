@@ -1,11 +1,14 @@
-import * as TK from "./tk.js";
 import {addOptionButton} from "./utils.js";
+import * as TK from "./tk.js";
+import {BaseScript} from "./baseScript.js";
 
 class ThisScript extends TK.Script {
   async perform() {
-    this.finally = addOptionButton("hello ben", () => {
-      this.tlog("inside");
-    });
+    console.log("BENBEN", BaseScript.prototype.addOptionButton.toString());
+
+    // this.addOptionButton("hello ben", () => {
+    //   this.tlog("Inside button");
+    // });
 
     await this.sleep(5000);
   }

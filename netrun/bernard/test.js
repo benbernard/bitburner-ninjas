@@ -1,29 +1,25 @@
-import BaseScript from "./baseScript.js";
+import * as TK from "./tk.js";
 import {json} from "./utils.js";
 import {DataManager} from "./communication.js";
+import {SharedMem} from "./sharedMem.js";
 
-class ThisScript extends BaseScript {
+class ThisScript extends TK.Script {
   async perform() {
-    let manager = DataManager.initManager("send", "receive");
+    this.shared = this.createSharedMem();
 
-    await this.sleep(1000);
-    manager.update("send", data => {
-      data.push("foo");
-    });
+    this.shared.data.hello = "Ben";
+    this.home.exec("test2.js", 1, this.shared.UUID);
 
-    this.unsub = manager.subscribe("receive", data => {
-      this.tlog(`Subscribed: ` + data.pop());
-      this.unsub();
-      this.tlog("Hacking");
-      this.ns.hack("foodnstuff").then(() => {
-        this.tlog("done with Hacking");
-        this.done();
-      });
-    });
+    let lastValue;
+    while (true) {
+      let currentValue = this.shared.data.response;
+      if (currentValue !== lastValue) {
+        lastValue = currentValue;
+        this.tlog(currentValue);
+      }
 
-    return new Promise((resolve, reject) => {
-      this.done = resolve;
-    });
+      await this.sleep(100);
+    }
   }
 }
 

@@ -15,9 +15,8 @@ const STOP_FILE = "stop_file.txt";
 class ThisScript extends BaseScript {
   async perform() {
     this.stopped = false;
-    this.finally = addOptionButton("Stop Loop", () => {
+    this.addOptionButton("Stop Loop", () => {
       this.stopped = true;
-      this.finally();
     });
 
     // this.player = new Player(this.ns);

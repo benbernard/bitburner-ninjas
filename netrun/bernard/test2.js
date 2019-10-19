@@ -1,10 +1,11 @@
 import * as TK from "./tk.js";
 import {json} from "./utils.js";
-import {DataManager} from "./communication.js";
 
 class ThisScript extends TK.Script {
   async perform() {
-    let instance = await DataManager.getInstance();
+    let instance = this.getSharedMem(this.pullFirstArg());
+
+    // instance.data.hello
 
     instance.subscribe("send", data => {
       this.tlog(`Got: ${json(data)}`);
