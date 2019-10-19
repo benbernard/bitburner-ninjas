@@ -1,4 +1,5 @@
 import * as TK from "./tk.js";
+import {_, json} from "./utils.js";
 import {NSObject} from "./baseScript.js";
 
 const GROW_SCRIPT = "minimal-grow.js";
@@ -6,6 +7,8 @@ const WEAKEN_SCRIPT = "minimal-weaken.js";
 const HACK_SCRIPT = "minimal-hack.js";
 
 const STATUS_FILE = "firegale-status.txt";
+
+const DEBUG = false;
 
 class ThisScript extends TK.Script {
   async allServers() {
@@ -85,7 +88,7 @@ class ThisScript extends TK.Script {
       }
     }
 
-    let content = JSON.stringify(infos, null, 2);
+    let content = json(infos, null, 2);
     this.ns.write(STATUS_FILE, content, "w");
   }
 
@@ -362,7 +365,20 @@ class DelayedAttack extends NSObject {
 
     this.ramManager = ramManager;
     this.scheduledThreads = ramManager.scheduleAttack(this);
-    if (this.scheduledThreads === false) this.dead = true;
+    if (this.scheduledThreads === false) {
+      this.dead = true;
+    } else if (DEBUG)
+      this.log(`Scheduling: ${this.info()}: ${this.scheduleInfo()}`);
+  }
+
+  scheduleInfo() {
+    if (this.scheduledThreads === false) return "No threads scheduled";
+    let info = {};
+    for (let [server, data] of _.hashEach(this.scheduledThreads)) {
+      info[server] = [data.threads, data.threads * this.ramPerThread()];
+    }
+
+    return json(info);
   }
 
   endTime() {
@@ -402,6 +418,12 @@ class DelayedAttack extends NSObject {
 
   reclaim() {
     if (this.reclaimed) return;
+    if (DEBUG)
+      this.log(
+        `Reclaiming ${this.info()} procs: ${this.procs
+          .map(p => p.UUID)
+          .join(",") || "[]"} ${this.scheduleInfo()}`
+      );
     if (this.scheduledThreads) {
       this.ramManager.reclaim(this.scheduledThreads, this.ramPerThread());
     }
@@ -480,13 +502,19 @@ class DelayedAttack extends NSObject {
       this.procs.push(this.createProc(info.threads, info.server));
     }
 
-    try {
-      this.procs.forEach(p => p.run());
-    } catch (e) {
-      this.log(`ERROR Info: ${e.stack}`);
-      this.log(`Ram manager: ${JSON.stringify(this.ramManager.serverRam)}`);
-      throw e;
+    for (let proc of this.procs) {
+      try {
+        proc.run();
+      } catch (e) {
+        this.log(`ERROR Info: ${e.stack}`);
+        this.log(`Ram manager: ${json(this.ramManager.serverRam)}`);
+        this.log(this.scheduleInfo());
+        if (DEBUG) this.ramManager.dumpLog(proc.server);
+
+        throw e;
+      }
     }
+
     return true;
   }
 
@@ -770,27 +798,56 @@ class RamManager extends NSObject {
     super(ns);
     this.serverRam = {};
     this.cacheStart = this.ns.getTimeSinceLastAug();
+    this.eventLog = new Map();
+  }
+
+  addLogEvent(event, server) {
+    if (!DEBUG) return;
+    let events = this.eventLog.get(server.name) || [];
+    events.push(event);
+    if (!this.eventLog.has(server.name)) this.eventLog.set(server.name, events);
+  }
+
+  dumpLog(server) {
+    if (!this.eventLog.has(server.name))
+      return this.log("Tried to dump ${server.name}, but no events!");
+    this.log(
+      `Dumping event log for: ${server.name}:\n` +
+        this.eventLog.get(server.name).join("\n")
+    );
   }
 
   setServers(servers) {
-    let serverRam = {};
-
     let now = this.ns.getTimeSinceLastAug();
     let recheckTotals = this.cacheStart + 300000 < now;
 
     for (let server of servers) {
       let info = {};
       let dying = server.isDying();
+      let oldDying = info.dying;
+
       if (server.name in this.serverRam) {
         info = this.serverRam[server.name];
+        if (dying !== oldDying) {
+          this.addLogEvent(
+            `Changing dying status for ${server.name} to: ${dying}`,
+            server
+          );
+        }
+
         info.dying = dying;
-        if (recheckTotals) {
+        if (recheckTotals || dying !== oldDying) {
           let totalRam = server.ram();
 
           // Did the server grow because of a purchase action?
           if (totalRam > info.total) {
+            let oldTotal = info.total;
             info.available += totalRam - info.total;
             info.total = totalRam;
+            this.addLogEvent(
+              `Increasing total ram on ${server.name} from ${oldTotal} to ${totalRam}, A: ${info.available}`,
+              server
+            );
           }
         }
       } else {
@@ -802,12 +859,16 @@ class RamManager extends NSObject {
           total,
           dying,
         };
+
+        this.addLogEvent(
+          `Setting ram info for ${server.name}, dying: ${dying} t: ${total} A: ${available}`,
+          server
+        );
       }
 
-      serverRam[server.name] = info;
+      this.serverRam[server.name] = info;
     }
 
-    this.serverRam = serverRam;
     this.servers = servers;
     if (recheckTotals) this.cacheStart = this.ns.getTimeSinceLastAug();
 
@@ -866,7 +927,14 @@ class RamManager extends NSObject {
     for (let info of Object.values(scheduledThreads)) {
       let server = info.server;
       if (!(server.name in this.serverRam)) continue;
+
       this.incrementRam(server, info.threads * ramPerThread);
+      this.addLogEvent(
+        `Reclaiming ${info.threads} R:${info.threads * ramPerThread} to ${
+          server.name
+        } A: ${this.getAvailableRam(server)}`,
+        server
+      );
     }
   }
 
@@ -901,6 +969,14 @@ class RamManager extends NSObject {
         };
 
         this.incrementRam(currentServer, allocatedThreads * ramPerThread * -1);
+
+        this.addLogEvent(
+          `Allocating ${allocatedThreads} R:${allocatedThreads *
+            ramPerThread} to ${currentServer.name} A: ${this.getAvailableRam(
+            currentServer
+          )}`,
+          currentServer
+        );
       }
 
       if (unallocatedThreads > 0) {
