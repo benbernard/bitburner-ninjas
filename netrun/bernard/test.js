@@ -1,15 +1,29 @@
 import BaseScript from "./baseScript.js";
 import {json} from "./utils.js";
+import {DataManager} from "./communication.js";
 
 class ThisScript extends BaseScript {
   async perform() {
-    this.tlog(document);
-    this.tlog(navigator);
-    let result = await navigator.permissions.query({name: "clipboard-write"});
-    this.tlog(result.state);
+    let manager = DataManager.initManager("send", "receive");
 
-    let info = await navigator.clipboard.writeText("foo");
-    this.tlog(json(info));
+    await this.sleep(1000);
+    manager.update("send", data => {
+      data.push("foo");
+    });
+
+    this.unsub = manager.subscribe("receive", data => {
+      this.tlog(`Subscribed: ` + data.pop());
+      this.unsub();
+      this.tlog("Hacking");
+      this.ns.hack("foodnstuff").then(() => {
+        this.tlog("done with Hacking");
+        this.done();
+      });
+    });
+
+    return new Promise((resolve, reject) => {
+      this.done = resolve;
+    });
   }
 }
 
