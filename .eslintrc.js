@@ -311,7 +311,7 @@ module.exports = {
     "rest-spread-spacing": ["error", "never"],
     semi: "off",
     "semi-spacing": "error",
-    "sort-imports": "error",
+    "sort-imports": "off",
     "sort-vars": "off",
     "space-before-blocks": "error",
     "space-before-function-paren": [

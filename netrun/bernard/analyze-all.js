@@ -33,8 +33,7 @@ class ThisScript extends TK.Script {
     } else if (servers.length === 1) {
       let server = servers[0];
       this.tlog(server.info(true, {asConnect: true}));
-      let connectString = server.path({asConnect: true});
-      copy(connectString);
+      server.copyConnectionPath();
     } else {
       this.tlog(`No matching servers for ${term}`);
     }

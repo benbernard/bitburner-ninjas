@@ -1,5 +1,5 @@
 import {BaseScript, NSObject} from "./baseScript.js";
-import {_} from "./utils.js";
+import {_, copy} from "./utils.js";
 import traverse from "./traverse.js";
 
 const DYING_FILE = "dying.txt";
@@ -268,6 +268,11 @@ export class Server extends NSObject {
 
     if (includePath) parts.push(`Path: ${this.path(options)}`);
     return parts.join(" ");
+  }
+
+  copyConnectionPath() {
+    let connectString = this.path({asConnect: true});
+    copy(connectString);
   }
 
   path(options = {}) {

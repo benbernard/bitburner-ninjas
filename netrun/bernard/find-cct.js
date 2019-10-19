@@ -7,15 +7,21 @@ class ThisScript extends TK.Script {
       purchasedSet(this.ns)
     );
 
+    let lastServer;
     for (let server of servers) {
       let files = server.ls().filter(name => name.endsWith(".cct"));
       if (files.length) {
+        lastServer = server;
         this.tlog(
           `Found Contracts on ${server.name}: ${files.join(
             " "
           )} Path: ${server.path()}`
         );
       }
+    }
+
+    if (lastServer) {
+      lastServer.copyConnectionPath();
     }
   }
 }

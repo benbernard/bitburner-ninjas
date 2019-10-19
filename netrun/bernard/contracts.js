@@ -1,6 +1,7 @@
 import {trading1, trading2, trading3, trading4} from "./trading2.js";
 import {NSObject} from "./baseScript.js";
 import validMath from "./validMath.js";
+import {json} from "./utils.js";
 
 export default class Contract extends NSObject {
   constructor(ns, file, serverName) {
@@ -124,7 +125,11 @@ function largestFactor(target) {
     }
   }
 
-  return factors[factors.length - 1];
+  if (factors.length === 0) {
+    return target;
+  } else {
+    return factors[factors.length - 1];
+  }
 }
 
 // Cheated, didn't actually implement this
