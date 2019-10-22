@@ -1,12 +1,20 @@
-TARGETS=$(addprefix dist/, $(notdir $(wildcard netrun/${USER}/*.js)))
+TARGETS=$(addprefix dist/, $(notdir $(wildcard netrun/${USER}/*.js))) dist/netrun.js
+SOURCES=$(wildcard netrun/${USER}/*.js) netrun/netrun.js
 
-all: dist ${TARGETS} dist/netrun.js
+all: dist ${TARGETS}
 
 dist:
 	@mkdir dist
 
-dist/%.js: netrun/${USER}/%.js
-	npx rollup $< --format esm -o $@ --silent
+${TARGETS}: ${SOURCES}
+	echo target $@ source $<
+	npx rollup -c --silent
 
-dist/netrun.js: netrun/netrun.js
-	npx rollup $< --format esm -o $@ --silent
+# dist/%.js: netrun/${USER}/%.js
+# 	npx rollup -c --silent
+#
+# dist/netrun.js: netrun/netrun.js
+# 	npx rollup -c --silent
+
+clean:
+	rm -rf dist

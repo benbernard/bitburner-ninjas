@@ -7,7 +7,6 @@ const STOP_FILE = "stop_file.txt";
 
 class ThisScript extends BaseScript {
   async perform() {
-    this.ns.tail();
     this.stopped = false;
     this.addRemovingButton("Stop Loop", () => {
       this.stopped = true;

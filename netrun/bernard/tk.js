@@ -1,4 +1,3 @@
-// foo
 import * as BASE from "./baseScript.js";
 import traverse from "./traverse.js";
 
@@ -19,7 +18,11 @@ export class Server extends BASE.NSObject {
   }
 
   isHacknet() {
-    return this.name.startsWith("hacknet");
+    return (
+      this.name.startsWith("hacknet") &&
+      this.name !== "hacknet-node-0" &&
+      this.name !== "hacknet-node-1"
+    );
   }
 
   hackTimings() {

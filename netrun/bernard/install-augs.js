@@ -17,6 +17,11 @@ class ThisScript extends TK.Script {
 
     if (!proceed) await this.exit();
 
+    this.tlog("Spending hashes for money");
+    while (this.ns.hacknet.numHashes() > 4) {
+      this.ns.hacknet.spendHashes("Sell for Money");
+    }
+
     while (true) {
       this.tlog(`Buying NeuroFlux`);
       let success = this.ns.purchaseAugmentation(faction, "NeuroFlux Governor");

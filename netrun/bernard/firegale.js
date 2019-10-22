@@ -606,7 +606,7 @@ class PodAttack extends NSObject {
       this.delayedAttacks.push(
         new DelayedAttack(this.ns, {
           priority: this.priority,
-          startTime: 0,
+          startTime: this.startTime,
           script: GROW_SCRIPT,
           threads: growThreads,
           args: [this.server.name, 1],
@@ -625,7 +625,7 @@ class PodAttack extends NSObject {
       this.delayedAttacks.push(
         new DelayedAttack(this.ns, {
           priority: this.priority,
-          startTime: 0,
+          startTime: this.startTime,
           script: WEAKEN_SCRIPT,
           duration: this.weakenTime,
           threads: this.server.threadsForMinWeaken({extraGrow: growThreads}),
