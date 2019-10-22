@@ -1,6 +1,5 @@
 import {BaseScript, NSObject} from "./baseScript.js";
 import {CRIMES} from "./gameConstants.js";
-import {addOptionButton} from "./utils.js";
 
 const STOP_FILE = "stop_file.txt";
 const TOGGLE_FILE = "toggle_file.txt";
@@ -165,9 +164,9 @@ export class Player extends NSObject {
     return this.ns.stopAction();
   }
 
-  initPlayerLoop() {
+  initPlayerLoop(script) {
     this.stopped = false;
-    let remove = addOptionButton("Stop Loop", () => {
+    let remove = script.addOptionButton("Stop Loop", () => {
       this.stopped = true;
       this.stop();
       remove();

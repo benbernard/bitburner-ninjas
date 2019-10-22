@@ -7,7 +7,12 @@ const STOP_FILE = "stop_file.txt";
 
 class ThisScript extends BaseScript {
   async perform() {
-    await this.ns.wget("http://localhost:3000/toggleStop/no", TOGGLE_FILE);
+    this.ns.tail();
+    this.stopped = false;
+    this.addRemovingButton("Stop Loop", () => {
+      this.stopped = true;
+      this.ns.stopAction();
+    });
 
     let target = parseInt(this.ns.args[0] || 20);
 
@@ -22,7 +27,11 @@ class ThisScript extends BaseScript {
     if (this.getStat(stat) >= target) return;
 
     this.tlog(`Training ${stat} to ${target}`);
-    await this.gym(stat);
+    let result = await this.gym(stat);
+    if (!result) {
+      throw new Error("Bad gym training, are you in sector 12?");
+    }
+
     while (this.getStat(stat) < target) {
       await this.sleep(10000);
       await this.checkStop();
@@ -44,12 +53,9 @@ class ThisScript extends BaseScript {
   }
 
   async checkStop() {
-    await this.ns.wget("http://localhost:3000/shouldStop", STOP_FILE);
-    let contents = await this.ns.read(STOP_FILE);
-    if (contents.toLowerCase() === "yes") {
-      this.ns.stopAction();
-      await this.exit(`Stopped Actions by Server`);
-    }
+    if (!this.stopped) return;
+    this.ns.stopAction();
+    await this.exit(`Stopped Actions by Server`);
   }
 }
 

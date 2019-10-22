@@ -1,5 +1,8 @@
-export class DataManager {
-  constructor(...types) {
+import {NSObject} from "./baseScript.js";
+
+export class DataManager extends NSObject {
+  constructor(ns, ...types) {
+    super(ns);
     this.dataDumps = new Map();
     this.subscribers = new Map();
 
@@ -93,11 +96,3 @@ export class DataManager {
 DataManager.DONE = Symbol("done");
 DataManager.CONTINUE = Symbol("continue");
 DataManager.REMOVE = Symbol("remove");
-
-function sleep(ms) {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => resolve(), ms);
-  });
-}
-
-DataManager.promises = [];

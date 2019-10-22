@@ -1,4 +1,4 @@
-import {BaseScript, NSObject} from "./baseScript.js";
+import {BaseScript, NSObject, convertToPercent} from "./baseScript.js";
 import {
   CITIES,
   COMPANIES,
@@ -8,7 +8,6 @@ import {
   canonicalStat,
 } from "./gameConstants.js";
 import {Player} from "./singularity.js";
-import {convertToPercent} from "./utils.js";
 
 class ThisScript extends BaseScript {
   get player() {
@@ -36,7 +35,7 @@ class ThisScript extends BaseScript {
     );
     if (!doIt) await this.exit(`Cancelling...`);
 
-    this.finally = this.player.initPlayerLoop();
+    this.player.initPlayerLoop(this);
 
     for (let action of actions) {
       this.tlog(`Running ${action.info()}`);
@@ -126,6 +125,7 @@ class FactionAction extends Action {
   }
 
   async do() {
+    await this.setup();
     await this.ns.workForFaction(this.faction, "hacking");
     await this.sleep(10000);
   }

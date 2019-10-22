@@ -59,6 +59,18 @@ class ThisScript extends BaseScript {
         serversBelowTier.length
       );
 
+      let purchaseNow = Math.min(spotsAvailable, purchaseCount);
+      for (let i = 0; i < purchaseNow; i++) {
+        this.tlog(`Buying server at ${tier}`);
+        let response = await this.bank.buyServer("hydra", tier);
+        if (!response.purchased) {
+          this.tlog(`Unknown problem buying server at ${tier}!`);
+          break;
+        } else {
+          this.log(`Successfully purchased!`);
+        }
+      }
+
       if (deleteCount > 0) {
         let toDelete = serversBelowTier
           .sort((a, b) => this.ns.getServerRam(a) - this.ns.getServerRam(b))
@@ -68,17 +80,6 @@ class ThisScript extends BaseScript {
         for (let name of toDelete) {
           await this.replaceServer(name, tier);
           purchaseCount--;
-        }
-      }
-
-      for (let i = 0; i < purchaseCount; i++) {
-        this.tlog(`Buying server at ${tier}`);
-        let response = await this.bank.buyServer("hydra", tier);
-        if (!response.purchased) {
-          this.tlog(`Unknown problem buying server at ${tier}!`);
-          break;
-        } else {
-          this.log(`Successfully purchased!`);
         }
       }
 

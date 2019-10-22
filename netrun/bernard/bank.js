@@ -1,6 +1,5 @@
-import {BaseScript, NSObject} from "./baseScript.js";
+import {BaseScript, NSObject, convertStrToMoney} from "./baseScript.js";
 import {BankMessaging} from "./messaging.js";
-import {convertStrToMoney} from "./utils.js";
 
 const BANK_INFO_FILE = "bank-info.txt";
 
@@ -176,7 +175,7 @@ export class BankScript extends BaseScript {
 
   setBalances(req) {
     let amountSum = this.walletTotal();
-    for (let [name, amount] of req.data.sets) {
+    for (let {name, amount} of req.data.sets) {
       let wallet = this.wallet(name);
       amountSum = amountSum - wallet.amount + amount;
     }
@@ -185,9 +184,12 @@ export class BankScript extends BaseScript {
     if (amountSum < this.actualMoney()) {
       success = true;
 
-      for (let [name, amount] of req.data.sets) {
+      for (let {name, amount, portion = null} of req.data.sets) {
         let wallet = this.wallet(name);
         wallet.amount = amount;
+        if (portion) {
+          wallet.portion = portion;
+        }
       }
     }
 
@@ -369,13 +371,13 @@ export class BankScript extends BaseScript {
     };
 
     // this.addWallet({name: "gang", portion: 0.3});
-    this.addWallet({name: "servers", portion: 0.5, priority: 4});
+    this.addWallet({name: "servers", portion: 0.99, priority: 4});
     this.addWallet({
       name: "stocks",
-      portion: 0.3,
+      portion: 0.01,
       minMaxMoney: convertStrToMoney("10b"),
     });
-    this.addWallet({name: "rest", portion: 1, priority: 100});
+    // this.addWallet({name: "rest", portion: 0.09, priority: 100});
 
     this.saveState();
   }

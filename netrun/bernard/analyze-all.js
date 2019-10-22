@@ -1,5 +1,4 @@
 import * as TK from "./tk.js";
-import {copy} from "./utils.js";
 import {purchasedSet} from "./purchased.js";
 
 class ThisScript extends TK.Script {

@@ -1,5 +1,4 @@
-import {uuid, getDocument} from "./utils.js";
-import {BaseScript} from "./baseScript.js";
+import {BaseScript, uuid, getDocument} from "./baseScript.js";
 
 let doc = getDocument();
 

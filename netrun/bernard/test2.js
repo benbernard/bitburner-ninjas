@@ -1,5 +1,5 @@
 import * as TK from "./tk.js";
-import {json} from "./utils.js";
+import {json} from "./baseScript.js";
 
 class ThisScript extends TK.Script {
   async perform() {

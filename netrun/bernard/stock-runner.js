@@ -1,7 +1,7 @@
 import * as TK from "./tk.js";
 import {BankMessaging} from "./messaging.js";
 import {Market} from "./stocks.js";
-import {convertStrToMoney} from "./utils.js";
+import {convertStrToMoney} from "./baseScript.js";
 
 let BUY_FORECAST = 0.59;
 let SELL_FORECAST = 0.55;

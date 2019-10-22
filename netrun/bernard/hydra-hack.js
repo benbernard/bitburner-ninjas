@@ -287,12 +287,15 @@ class ThisScript extends TK.Script {
 
   async reachableServers() {
     // Careful not to re-use this.s for traversal, the rest of the code needs unique servers
-    return await this.server(this.s.name).reachableServers({}, true);
+    return (await this.server(this.s.name).reachableServers({}, true)).filter(
+      s => !s.isHacknet()
+    );
   }
 
   async rootReachableServers() {
     let servers = await this.reachableServers();
     let rootables = servers.filter(s => s.canNuke() && !s.hasRoot());
+
     for (let server of rootables) {
       this.log(`Nuking ${server.name}`);
       await server.nuke();

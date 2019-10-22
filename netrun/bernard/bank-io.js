@@ -1,13 +1,12 @@
-import {BaseScript, NSObject} from "./baseScript.js";
+import {json, BaseScript, NSObject, convertStrToMoney} from "./baseScript.js";
 import {BankMessaging} from "./messaging.js";
-import {convertStrToMoney} from "./utils.js";
 
 class ThisScript extends BaseScript {
   async perform() {
     let bank = new BankMessaging(this.ns);
     this.bank = bank;
 
-    let action = this.pullFirstArg();
+    let action = this.pullFirstArg() || "infos";
 
     if (action === "info") {
       let response = await bank.walletInfo(this.args[0]);
@@ -22,8 +21,14 @@ class ThisScript extends BaseScript {
     } else if (action === "set") {
       let sets = [];
       for (let arg of this.args) {
-        let [name, amount] = arg.split("=");
-        sets.push([name, convertStrToMoney(amount)]);
+        let info = arg.split("=");
+        let [name, amount] = info;
+        let set = {name, amount: convertStrToMoney(amount)};
+        if (info.length > 2) {
+          this.tlog(info[2]);
+          set.portion = parseFloat(info[2]);
+        }
+        sets.push(set);
       }
       let response = await bank.setBalances(sets);
       this.tlog(`Set Balance Response: ${JSON.stringify(response)}`);

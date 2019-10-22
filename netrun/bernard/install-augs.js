@@ -23,6 +23,8 @@ class ThisScript extends TK.Script {
       if (!success) break;
     }
 
+    this.ns.purchaseAugmentation("Daedalus", "The Red Pill");
+
     while (true) {
       this.tlog(`Upgrading Ram`);
       let success = await this.ns.upgradeHomeRam();
@@ -30,6 +32,8 @@ class ThisScript extends TK.Script {
     }
 
     this.tlog(`Installing Augments...`);
+    let result = await this.ns.prompt("Actually Install?");
+    if (!result) return;
     await this.ns.installAugmentations();
   }
 
