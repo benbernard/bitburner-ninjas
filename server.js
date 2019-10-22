@@ -2,13 +2,12 @@ const port = 3000;
 
 const fs = require("fs");
 const http = require("http");
+const rollup = require("rollup");
 
 const argName = process.argv[2];
-const dirname = `netrun/${argName}`;
+const dirname = `dist`;
 
-console.log(`Serving out of ${dirname}`);
-
-const LOADER = `../netrun.js`;
+const LOADER = `netrun.js`;
 
 if (!fs.existsSync(dirname)) {
   console.error(`
@@ -34,6 +33,9 @@ const requestHandler = (req, res) => {
 
   if (req.url === "/files") {
     res.end(JSON.stringify(gatherFiles()));
+    // } else if (req.url.startsWith("/files/")) {
+    //   let fileName = req.url.slice(7);
+    //   bundleFile(fileName, res);
   } else if (req.url === "/shouldStop") {
     res.end(shouldStop ? "Yes" : "No");
   } else if (req.url === "/toggleStop/yes") {
@@ -71,7 +73,6 @@ const slurpFile = file => {
 
 const gatherFiles = () => {
   const files = {};
-  addFile(LOADER, files);
 
   fs.readdirSync(dirname)
     .filter(file => !fs.lstatSync(`${dirname}/${file}`).isDirectory())
@@ -83,9 +84,44 @@ const gatherFiles = () => {
 };
 
 const addFile = (path, hash) => {
-  if (path === LOADER) {
-    hash["netrun.js"] = slurpFile(`${dirname}/${path}`);
-  } else {
-    hash[path] = slurpFile(`${dirname}/${path}`);
-  }
+  hash[path] = slurpFile(`${dirname}/${path}`);
 };
+
+async function bundleSingleFile(name) {
+  let inputFile = `${dirname}/${name}`;
+  if (name === "netrun.js") {
+    inputFile = `netrun/${name}`;
+  }
+
+  if (!fs.existsSync(inputFile)) {
+    return false;
+  }
+
+  let bundle = await rollup.rollup({
+    input: inputFile,
+  });
+
+  let destFile = `./dist/${name}`;
+  await bundle.write({
+    file: destFile,
+    format: "esm",
+  });
+
+  return fs.readFileSync(destFile).toString();
+}
+
+async function bundleFile(name, res) {
+  let contents = await bundleSingleFile(name);
+  if (contents === false) {
+    res.writeHead(404, {"Content-Type": "text/plain"});
+    res.write("404 Not found");
+    return res.end();
+  }
+
+  res.end(
+    JSON.stringify({
+      [name]: contents,
+      "netrun.js": await bundleSingleFile("netrun.js"),
+    })
+  );
+}

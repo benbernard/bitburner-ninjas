@@ -20,7 +20,8 @@
   "dependencies": {
     "eslint": "^6.4.0",
     "foreman": "^3.0.1",
-    "nodemon": "^1.19.2"
+    "nodemon": "^1.19.2",
+    "rollup": "^1.25.1"
   },
   "type": "module"
 }

@@ -20,12 +20,17 @@ export async function main(ns) {
     return await NS.exit();
   }
 
+  if (command === "update") {
+    await updateSourceFiles();
+    return NS.tprint("Done update");
+  }
+
+  if (!command.match(/\.js$/)) command = `${command}.js`;
+
   await updateSourceFiles();
 
   // After we may have reloaded, now we can remove command arg from NS.args
   NS.args.shift();
-
-  if (!command.match(/\.js$/)) command = `${command}.js`;
 
   if (!NS.fileExists(command)) {
     NS.tprint(`No command ${argCommand} found at ${command}`);
@@ -131,11 +136,13 @@ function traverse(file, deps, seen) {
   return [...others, file];
 }
 
-async function updateFiles() {
+async function updateFiles(name = null) {
   const INFO_FILE = "netrun_temp.txt";
 
   await NS.rm(INFO_FILE);
-  await NS.wget("http://localhost:3000/files", INFO_FILE);
+
+  let url = `http://localhost:3000/files`;
+  await NS.wget(url, INFO_FILE);
 
   let hasChanges = false;
   let contents = JSON.parse(NS.read(INFO_FILE));
