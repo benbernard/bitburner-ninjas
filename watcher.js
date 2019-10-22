@@ -12,9 +12,12 @@ const startRollup = () => {
 
 let rollup = startRollup();
 
+const restartRollup = () => {
+  rollup.kill();
+  rollup = startRollup();
+};
+
 watch.createMonitor("netrun", function (monitor) {
-  monitor.on("created", function (f, stat) {
-    rollup.kill();
-    rollup = startRollup();
-  });
+  monitor.on("created", restartRollup);
+  monitor.on("removed", restartRollup);
 });
