@@ -1,5 +1,6 @@
 import {trading1, trading2, trading3, trading4} from "./trading2.js";
-import {NSObject, json} from "./baseScript.js";
+import {NSObject} from "./baseScript.js";
+import {json} from "./utils.js";
 import validMath from "./validMath.js";
 
 export default class Contract extends NSObject {

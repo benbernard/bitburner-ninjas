@@ -1,4 +1,5 @@
-import {BaseScript, NSObject, convertToPercent} from "./baseScript.js";
+import {BaseScript, NSObject} from "./baseScript.js";
+import {convertToPercent} from "./utils.js";
 import {
   CITIES,
   COMPANIES,

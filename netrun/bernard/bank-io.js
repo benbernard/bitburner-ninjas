@@ -1,5 +1,6 @@
-import {json, BaseScript, NSObject, convertStrToMoney} from "./baseScript.js";
+import {BaseScript, NSObject} from "./baseScript.js";
 import {BankMessaging} from "./messaging.js";
+import {json, convertStrToMoney} from "./utils.js";
 
 class ThisScript extends BaseScript {
   async perform() {

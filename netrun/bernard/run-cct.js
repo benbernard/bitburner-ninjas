@@ -5,6 +5,7 @@ import {purchasedSet} from "./purchased.js";
 
 class ThisScript extends BaseScript {
   async perform() {
+    this.disableLogging("scan");
     this.submit = this.pullFirstArg() === "submit" ? true : false;
     if (!this.submit) return this.runContracts();
 

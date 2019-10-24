@@ -1,5 +1,5 @@
 import * as TK from "./tk.js";
-import {json} from "./baseScript.js";
+import {json} from "./utils.js";
 
 const HACKING_SCRIPTS = new Set([
   "hurricane.js",

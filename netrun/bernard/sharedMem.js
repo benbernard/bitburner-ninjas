@@ -1,6 +1,7 @@
-import {BaseScript, uuid, getDocument} from "./baseScript.js";
+import {BaseScript} from "./baseScript.js";
+import {uuid, getCheapAssDocument} from "./utils.js";
 
-let doc = getDocument();
+const doc = getCheapAssDocument();
 
 export class SharedMem {
   constructor() {

@@ -18,11 +18,9 @@ export class Server extends BASE.NSObject {
   }
 
   isHacknet() {
-    return (
-      this.name.startsWith("hacknet") &&
-      this.name !== "hacknet-node-0" &&
-      this.name !== "hacknet-node-1"
-    );
+    return this.name.startsWith("hacknet");
+    // this.name !== "hacknet-node-0" &&
+    // this.name !== "hacknet-node-1"
   }
 
   hackTimings() {

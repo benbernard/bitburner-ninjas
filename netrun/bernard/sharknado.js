@@ -1,5 +1,6 @@
 import * as TK from "./tk.js";
-import {NSObject, _, json} from "./baseScript.js";
+import {NSObject} from "./baseScript.js";
+import {_, json} from "./utils.js";
 
 const GROW_SCRIPT = "minimal-grow.js";
 const WEAKEN_SCRIPT = "minimal-weaken.js";

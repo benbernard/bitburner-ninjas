@@ -1,5 +1,6 @@
-import {BaseScript, NSObject, convertStrToMoney} from "./baseScript.js";
+import {BaseScript, NSObject} from "./baseScript.js";
 import {BankMessaging} from "./messaging.js";
+import {convertStrToMoney} from "./utils.js";
 
 const BANK_INFO_FILE = "bank-info.txt";
 

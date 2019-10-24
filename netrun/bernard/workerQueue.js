@@ -1,4 +1,4 @@
-import {uuid, getDocument} from "./baseScript.js";
+import {uuid, getCheapAssDocument} from "./utils.js";
 
 export class SharedMem {
   constructor() {
@@ -22,7 +22,7 @@ export class SharedMem {
   }
 
   static getInstance(uuid) {
-    let doc = getDocument();
+    let doc = getCheapAssDocument();
     if (!doc.sharedMem) {
       throw new Error("No SharedMem found");
     }
@@ -38,7 +38,7 @@ export class SharedMem {
   static createInstance() {
     let inst = new SharedMem();
 
-    let doc = getDocument();
+    let doc = getCheapAssDocument();
     if (doc.sharedMem) {
       doc.sharedMem.shutdown();
     }
