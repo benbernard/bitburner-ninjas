@@ -397,7 +397,7 @@ export class Server extends BASE.NSObject {
   async setupScript(script) {
     if (this.name === "home") return; // home is setup by netrun.js
 
-    let files = [...LIBRARY_FILES, script];
+    let files = [script];
 
     // Remove files before scp to suppress warnings
     for (let file of files) {
@@ -580,7 +580,7 @@ export class Process extends BASE.NSObject {
   }
 
   setup() {
-    let files = ["baseScript.js", this.script];
+    let files = [this.script];
     this.ns.scp(files, "home", this.server.name);
   }
 
