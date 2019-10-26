@@ -18,6 +18,10 @@ export class Queue {
       w.receiveRequest(new Request(Request.SHUTDOWN));
       this.workers.delete(w);
     });
+
+    if (navigator.workerQueue === this) {
+      navigator.workerQueue = undefined;
+    }
   }
 
   isShutdown() {

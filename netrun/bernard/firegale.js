@@ -58,7 +58,6 @@ class ThisScript extends TK.Script {
     }
 
     this.tlog(`Running ${attacks.length} prep jobs`);
-    this.ns.tail();
 
     if (attacks.length === 0) {
       this.tlog(`Done preparing`);

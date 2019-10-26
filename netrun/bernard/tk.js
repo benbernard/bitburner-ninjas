@@ -150,6 +150,10 @@ export class Server extends NSObject {
     return this.ns.getWeakenTime(this.name);
   }
 
+  hasLowSecurity() {
+    return this.security() < this.minSecurity() + 3;
+  }
+
   threadsForMinWeaken({extraHack = 0, extraGrow = 0} = {}) {
     let min = this.minSecurity();
     let current = this.security();

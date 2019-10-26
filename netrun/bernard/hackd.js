@@ -110,7 +110,16 @@ class ThisScript extends BaseScript {
       throw err;
     }
 
-    action = action.finally(() => req.resolve());
+    this.log(
+      `Starting ${req.type}, threads: ${req.threads} against ${req.target}`
+    );
+    action = action.finally(() => {
+      this.log(
+        `Finished ${req.type}, threads: ${req.threads} against ${req.target}`
+      );
+      req.resolve();
+    });
+
     this.addWorkerThread(action, threads);
   }
 }

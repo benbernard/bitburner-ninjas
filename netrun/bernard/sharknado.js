@@ -13,7 +13,7 @@ const WEAKEN_SECURITY_HEAL = 0.05;
 
 const SECURITY_BUFFER = 3;
 
-const DEBUG = false;
+const DEBUG = true;
 
 class ThisScript extends TK.Script {
   async allServers() {
@@ -33,7 +33,7 @@ class ThisScript extends TK.Script {
   }
 
   now() {
-    return this.ns.getTimeSinceLastAug();
+    return Date.now();
   }
 
   updateStatus() {
@@ -58,7 +58,6 @@ class ThisScript extends TK.Script {
 
   async determineTarget() {
     if (this.target && this.targetHacks < TARGET_HACK_MIN) {
-      this.updateTargetSecuirty();
       this.target.clearTimingsCache();
       return this.target;
     }
@@ -67,25 +66,29 @@ class ThisScript extends TK.Script {
     if (!this.target || this.target.name !== newTarget.name) {
       this.target = newTarget;
       this.targetHacks = 0;
-      this.targetHasLowSecurity = false;
-      this.updateTargetSecuirty();
     }
 
     return this.target;
   }
 
-  updateTargetSecuirty() {
-    if (this.targetHasLowSecurity) return;
-
-    this.targetHasLowSecurity =
-      this.target.security() <= this.target.minSecurity() + SECURITY_BUFFER;
-  }
-
   cleanup() {
+    let removed = false;
     for (let attack of this.attacks) {
       if (!attack.isRunning()) {
+        removed = true;
         this.attacks.delete(attack);
       }
+    }
+
+    if (removed) {
+      this.updateAttackedServerSet();
+    }
+  }
+
+  updateAttackedServerSet() {
+    this.attackedServers = new Set();
+    for (let attack of this.attacks) {
+      this.attackedServers.add(attack.server.name);
     }
   }
 
@@ -112,6 +115,7 @@ class ThisScript extends TK.Script {
     this.addFinally(() => this.procs.forEach(p => p.kill()));
 
     this.attacks = new Set();
+    this.attackedServers = new Set();
     // TODO: Need a way to handle dying in new world
     // just send new type of request?
     // also don't fill dying workers
@@ -120,16 +124,18 @@ class ThisScript extends TK.Script {
     let sleepMs = 10;
     let periodic = 5000 / sleepMs;
     this.threadManager = new ThreadManager(this.ns, this.queue);
+    let lastTime = 0;
 
     while (true) {
+      let now = this.now();
+      lastTime = now;
+
       if (count % periodic === 0) {
         count = 0;
         await this.fillWorkers();
       }
 
       this.cleanup();
-
-      let now = this.now();
 
       let target = await this.determineTarget();
       await this.createPrepAttacks(now);
@@ -141,9 +147,15 @@ class ThisScript extends TK.Script {
         this.updateStatus();
       }
 
-      await this.sleep(sleepMs);
+      await this.delay(sleepMs);
       count++;
     }
+  }
+
+  delay(ms) {
+    return new Promise((resolve, reject) => {
+      setTimeout(resolve, ms);
+    });
   }
 
   runAttacks(now) {
@@ -153,16 +165,17 @@ class ThisScript extends TK.Script {
     for (let attack of this.attacks) {
       if (!target || target.name !== attack.server.name) {
         target = attack.server;
-        hasLowSec = target.security() <= target.minSecurity() + SECURITY_BUFFER;
+        hasLowSec = target.hasLowSecurity();
       }
 
-      if (hasLowSec || attack.canRunHighSec) attack.run(now);
+      if (hasLowSec || attack.canAttackHighSec) attack.run(now);
     }
   }
 
   addAttack(attack) {
     this.lastAttack = attack;
     this.attacks.add(attack);
+    this.attackedServers.add(attack.server.name);
 
     if (this.target.name === attack.server.name && attack.fullRun) {
       this.targetHacks++;
@@ -182,6 +195,7 @@ class ThisScript extends TK.Script {
   async createPrepAttacks(now) {
     for (let target of await this.serversToAttack()) {
       if (this.threadManager.availableThreads() < 10) return;
+      if (this.attackedServers.has(target.name)) continue;
       if (this.readyToAttack(target)) continue;
 
       let attack = new PodAttack(this.ns, {
@@ -189,16 +203,21 @@ class ThisScript extends TK.Script {
         startTime: now,
         server: target,
         threadManager: this.threadManager,
-        canRunHighSec: true,
         firstRun: true,
+        canAttackHighSec: true,
       });
+
       this.addAttack(attack);
-      if (!attack.fullRun) return;
+      attack.run(now);
+      if (!attack.fullRun) {
+        return;
+      }
     }
   }
 
   createPodAttack(target, now) {
     if (this.threadManager.availableThreads() <= 10) return;
+    if (!target.hasLowSecurity()) return;
 
     let hackThreads = target.threadsForHack(0.5);
     let growThreads = Math.ceil(target.threadsForGrowth(2));
@@ -206,25 +225,29 @@ class ThisScript extends TK.Script {
       Math.ceil((hackThreads * HACK_SECURITY_COST) / WEAKEN_SECURITY_HEAL) +
       Math.ceil((growThreads * GROW_SECURITY_COST) / WEAKEN_SECURITY_HEAL);
 
+    target.clearTimingsCache();
+
     if (this.targetHacks === 0) {
+      if (this.attackedServers.has(target.name)) return;
       let firstAttack = new PodAttack(this.ns, {
         parent: this.parentAttack(target),
         queue: this.queue,
         startTime: now,
         server: target,
         threadManager: this.threadManager,
-        canRunHighSec: !this.targetHasLowSecurity,
         firstRun: true,
       });
       this.addAttack(firstAttack);
-    } else if (!this.targetHasLowSecurity) {
-      return;
     }
 
+    let first = true;
     while (
       this.threadManager.availableThreads() >
       hackThreads + growThreads + weakenThreads
     ) {
+      if (DEBUG && first) this.log(`Starting fill loop`);
+      first = false;
+
       let attack = new PodAttack(this.ns, {
         parent: this.parentAttack(target),
         queue: this.queue,
@@ -232,13 +255,10 @@ class ThisScript extends TK.Script {
         server: target,
         priority: 0,
         threadManager: this.threadManager,
-        canRunHighSec: !this.targetHasLowSecurity,
       });
 
+      if (attack.isTooFarFuture(now)) break;
       this.addAttack(attack);
-      if (!this.targetHasLowSecurity && !attack.isValid()) {
-        break;
-      }
     }
   }
 
@@ -280,9 +300,9 @@ class ThisScript extends TK.Script {
   }
 
   async measure(fn, type, time) {
-    let start = this.ns.getTimeSinceLastAug();
+    let start = Date.now();
     await fn();
-    let end = this.ns.getTimeSinceLastAug();
+    let end = Date.now();
 
     this.tlog(`Type ${type} took ${(end - start) / 1000} expected: ${time}`);
   }
@@ -297,15 +317,7 @@ class ThisScript extends TK.Script {
 class DelayedAttack extends NSObject {
   constructor(
     ns,
-    {
-      startTime = 0,
-      duration = null,
-      type,
-      threads,
-      target,
-      queue,
-      threadManager,
-    }
+    {startTime = 0, duration, type, threads, target, queue, threadManager}
   ) {
     super(ns);
     this.type = type;
@@ -317,6 +329,8 @@ class DelayedAttack extends NSObject {
     this.procs = [];
     this.running = false;
     this.started = false;
+
+    if (!duration) throw new Error(`No duration`);
 
     if (!_.isNumber(this.threads) || this.threads <= 0) {
       throw new Error(
@@ -338,16 +352,22 @@ class DelayedAttack extends NSObject {
     return this.startTime + this.duration;
   }
 
+  startDelay() {
+    if (!this.started) return 0;
+    return this.actualStart - this.startTime;
+  }
+
   info() {
-    let now = this.ns.getTimeSinceLastAug();
+    let now = Date.now();
     let start = Math.floor((this.startTime - now) / 1000);
     let duration = Math.floor(this.duration / 1000);
     let running = this.running ? "Not Running" : "Running";
     let allocs = _.toArray(this.serverAllocs || [])
       .map(([server, threads]) => `${server}=${threads}`)
       .join(",");
+    let end = round2((now - this.endTime()) / 1000);
 
-    return `${this.type} T:${this.threads} ${allocs} S:${start} D:${duration}`;
+    return `${this.type} T:${this.threads} ${allocs} S:${start} D:${duration} E:${end}`;
   }
 
   isRunning() {
@@ -355,9 +375,10 @@ class DelayedAttack extends NSObject {
     return this.running;
   }
 
-  runIfTime(now) {
+  runIfTime(now, delay = 0) {
     if (this.started) return true;
-    if (now > this.startTime) {
+    if (now > this.startTime + delay) {
+      this.actualStart = now;
       this.run();
     }
 
@@ -377,6 +398,16 @@ class DelayedAttack extends NSObject {
   stopRun() {
     this.running = false;
     this.reclaim();
+    let now = Date.now();
+
+    let normalEnd = now - this.endTime();
+    let actualEnd = now - this.actualStart - this.duration;
+
+    if (DEBUG)
+      this.log(
+        `Stopped expected end: ${normalEnd} expected from start: ${actualEnd} diff: ${normalEnd -
+          actualEnd} for ${this.target.name} ${this.info()}`
+      );
   }
 
   run() {
@@ -384,6 +415,16 @@ class DelayedAttack extends NSObject {
     this.started = true;
     this.running = true;
 
+    if (Date.now() - this.startTime > 500 && this.type !== Request.WEAKEN) {
+      this.running = false;
+      this.reclaim();
+      return;
+    }
+
+    if (DEBUG)
+      this.log(
+        `Started, expected: ${Date.now() - this.startTime} for ${this.info()}`
+      );
     this.serverAllocs = this.queue.sendRequest(
       this.type,
       this.target.name,
@@ -402,9 +443,9 @@ class PodAttack extends NSObject {
       priority = null,
       server,
       threadManager,
-      canRunHighSec = false,
       queue,
       firstRun = false,
+      canAttackHighSec = false,
     }
   ) {
     super(ns);
@@ -420,9 +461,9 @@ class PodAttack extends NSObject {
     }
 
     this.server = server;
+    this.canAttackHighSec = canAttackHighSec;
     this.originalStartTime = startTime;
     this.priority = priority;
-    this.canRunHighSec = canRunHighSec;
     this.queue = queue;
     this.firstRun = firstRun;
 
@@ -435,6 +476,13 @@ class PodAttack extends NSObject {
     this.delayedAttacks = [];
 
     this.setupAttack();
+  }
+
+  maxStartDelay() {
+    return this.delayedAttacks.reduce(
+      (max, e) => Math.max(max, e.startDelay()),
+      0
+    );
   }
 
   get threads() {
@@ -494,9 +542,8 @@ class PodAttack extends NSObject {
 
   setupGrow() {
     let growThreads = this.server.threadsForGrowth(2);
-    if (this.firstRun) {
-      growThreads = this.server.threadsForMaxGrowth();
-    }
+    let maxGrow = this.server.threadsForMaxGrowth();
+    if (maxGrow * 0.95 > growThreads) growThreads = maxGrow;
 
     let {attackThreads, weakenThreads, fullRun} = this.attackThreads(
       growThreads,
@@ -540,7 +587,9 @@ class PodAttack extends NSObject {
   setupHack() {
     if (this.firstRun) {
       if (this.server.maxMoney() * 0.95 > this.server.money()) {
-        return;
+        return true;
+      } else if (!this.server.hasLowSecurity()) {
+        return true;
       }
     }
 
@@ -584,9 +633,40 @@ class PodAttack extends NSObject {
     return fullRun;
   }
 
+  setupOnlyWeaken() {
+    if (this.server.hasLowSecurity()) return true;
+
+    let desiredThreads = this.server.threadsForMinWeaken();
+    let threads = Math.min(
+      desiredThreads,
+      this.threadManager.availableThreads()
+    );
+
+    this.delayedAttacks.push(
+      new DelayedAttack(this.ns, {
+        queue: this.queue,
+        priority: this.priority,
+        startTime: this.startTime,
+        type: Request.WEAKEN,
+        duration: this.weakenTime,
+        target: this.server,
+        podAttack: this,
+        threadManager: this.threadManager,
+        threads,
+      })
+    );
+
+    this.startTime += 500;
+
+    return threads === desiredThreads;
+  }
+
   setupAttack() {
-    let fullRun = this.setupGrow();
+    let fullRun = this.setupOnlyWeaken();
+
+    if (fullRun) fullRun = this.setupGrow();
     if (fullRun) fullRun = this.setupHack();
+
     this.fullRun = fullRun;
     return fullRun;
   }
@@ -596,9 +676,39 @@ class PodAttack extends NSObject {
   }
 
   run(time) {
-    for (let attack of this.delayedAttacks) {
-      attack.runIfTime(time);
+    if (!this.parent) {
+      this.delayedAttacks.forEach(a => a.runIfTime(time));
+      return;
     }
+
+    if (!this.parent.hasStarted()) return;
+    let delay = this.maxStartDelay();
+    this.delayedAttacks.forEach(a => a.runIfTime(time, delay));
+  }
+
+  hasStarted() {
+    return this.delayedAttacks.some(a => a.started);
+  }
+
+  maxDuration() {
+    return this.delayedAttacks.reduce((max, a) => Math.max(max, a.duration), 0);
+  }
+
+  isTooFarFuture(now) {
+    let duration = this.maxDuration();
+    let result = this.startTime > now + duration * 1.1;
+
+    if (DEBUG) {
+      if (result) {
+        this.log(`Pod is too far forward!`);
+      } else {
+        this.log(
+          `not too far future S:${this.startTime} D:${duration} N:${now}`
+        );
+      }
+    }
+
+    return result;
   }
 
   startWeakenGrowTime() {
