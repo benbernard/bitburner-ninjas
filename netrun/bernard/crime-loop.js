@@ -37,6 +37,7 @@ class ThisScript extends BaseScript {
       while (this.ns.isBusy() && !this.stopped) {
         await this.sleep(100);
       }
+      await this.sleep(100);
     }
   }
 
@@ -78,6 +79,7 @@ class ThisScript extends BaseScript {
       ) {
         this.tlog(`Upgrading home ram`);
         await this.ns.upgradeHomeRam();
+        await this.sleep(100);
       }
     }
   }

@@ -11,6 +11,7 @@ export const TASKS = {
   TRAIN_COMBAT: "Train Combat",
   TERRITORY_WARFARE: "Territory Warfare",
   VIGILANTE_JUSTICE: "Vigilante Justice",
+  MUG: "Mug People",
 };
 
 export class Gang extends GangNSObject {

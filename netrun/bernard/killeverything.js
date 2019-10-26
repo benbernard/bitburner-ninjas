@@ -11,7 +11,9 @@ class ThisScript extends TK.ServerScript {
       let processes = server.ps();
 
       for (let info of processes) {
-        this.tlog(`Killl ${info.filename} on ${server.name}`);
+        if (info.filename === this.scriptName() && server.name === "home")
+          continue;
+        this.tlog(`Killing ${info.filename} on ${server.name}`);
       }
 
       await server.killall();

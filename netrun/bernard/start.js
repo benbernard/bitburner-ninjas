@@ -2,11 +2,11 @@ import BaseScript from "./baseScript.js";
 
 let scripts = [
   ["bank.js"],
-  ["hacknet-manager.js"],
+  // ["hacknet-manager.js"],
   ["run-cct.js", "submit"],
   ["buy-programs.js"],
   ["hydra-hack.js"],
-  // ["maintain-servers.js"],
+  ["maintain-servers.js"],
   // ['manage-gang.js'],
 ];
 

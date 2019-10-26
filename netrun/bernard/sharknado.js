@@ -1,12 +1,17 @@
 import * as TK from "./tk.js";
 import {NSObject} from "./baseScript.js";
 import {_, json} from "./utils.js";
+import {Queue, Request} from "./workerQueue.js";
 
-const GROW_SCRIPT = "minimal-grow.js";
-const WEAKEN_SCRIPT = "minimal-weaken.js";
-const HACK_SCRIPT = "minimal-hack.js";
+const STATUS_FILE = "sharknado-status.txt";
+const WORKER_SCRIPT = "hackd.js";
+const TARGET_HACK_MIN = 10;
 
-const STATUS_FILE = "firegale-status.txt";
+const HACK_SECURITY_COST = 0.002;
+const GROW_SECURITY_COST = 0.004;
+const WEAKEN_SECURITY_HEAL = 0.05;
+
+const SECURITY_BUFFER = 3;
 
 const DEBUG = false;
 
@@ -31,74 +36,14 @@ class ThisScript extends TK.Script {
     return this.ns.getTimeSinceLastAug();
   }
 
-  async prepareAll() {
-    await this.nukeServers();
-    let servers = await this.allServers();
-    servers = servers.filter(s => s.maxMoney() > 0);
-
-    let workers = await this.workers();
-
-    let now = this.now();
-
-    let attacks = [];
-    let ramManager = new RamManager(this.ns);
-    ramManager.setServers(workers);
-    for (let server of servers) {
-      if (this.readyToAttack(server)) continue;
-      let newAttack = new PodAttack(this.ns, {
-        mode: "prepare",
-        server,
-        startTime: now,
-        timings: server.hackTimings(),
-        ramManager,
-      });
-
-      newAttack.run(now, workers, []);
-      attacks.push(newAttack);
-    }
-
-    this.tlog(`Running ${attacks.length} prep jobs`);
-    this.ns.tail();
-
-    if (attacks.length === 0) {
-      this.tlog(`Done preparing`);
-      return;
-    }
-
-    while (true) {
-      await this.sleep(1000);
-
-      if (attacks.some(a => a.isRunning())) {
-        continue;
-      } else {
-        break;
-      }
-    }
-
-    this.tlog(`Done preparing`);
-  }
-
   updateStatus() {
-    let infos = {};
-
-    for (let target of Object.keys(this.attacks)) {
-      infos[target] = [];
-      for (let attack of this.attacks[target]) {
-        infos[target].push(...attack.infos());
-      }
-    }
-
-    let content = json(infos, null, 2);
-    this.ns.write(STATUS_FILE, content, "w");
-  }
-
-  addPodAttack(attack) {
-    let target = attack.server.name;
-    if (!(target in this.attacks)) {
-      this.attacks[target] = [];
-    }
-
-    this.attacks[target].push(attack);
+    let info = {
+      maxThreads: this.queue.maxThreads,
+      availableThreads: this.queue.availableThreads,
+      threadManager: this.threadManager.availableThreads(),
+      attackInfo: _.toArray(this.attacks).map(a => a.infos()),
+    };
+    this.ns.write(STATUS_FILE, json(info, null, 2), "w");
   }
 
   async serversToAttack() {
@@ -111,91 +56,37 @@ class ThisScript extends TK.Script {
       .sort(byMoneyPerTime);
   }
 
-  async startAttacks(now, ramManager) {
-    let servers = await this.serversToAttack();
+  async determineTarget() {
+    if (this.target && this.targetHacks < TARGET_HACK_MIN) {
+      this.updateTargetSecuirty();
+      this.target.clearTimingsCache();
+      return this.target;
+    }
 
-    let priority = 0;
-    for (let server of servers) {
-      priority += 1000;
-      let serverName = server.name;
+    let newTarget = (await this.serversToAttack())[0];
+    if (!this.target || this.target.name !== newTarget.name) {
+      this.target = newTarget;
+      this.targetHacks = 0;
+      this.targetHasLowSecurity = false;
+      this.updateTargetSecuirty();
+    }
 
-      // Skip if we are already attacking
-      let attacks = this.attacks[serverName];
-      if (attacks && attacks.length > 0) continue;
+    return this.target;
+  }
 
-      if (this.readyToAttack(server)) {
-        let full = this.createFullPodAttack(server, priority, now, ramManager);
-        if (full) {
-          return;
-        }
-      } else {
-        let prepAttack = new PodAttack(this.ns, {
-          mode: "prepare",
-          server,
-          priority,
-          startTime: now,
-          timings: server.hackTimings(),
-          ramManager,
-        });
+  updateTargetSecuirty() {
+    if (this.targetHasLowSecurity) return;
 
-        if (prepAttack.dead) {
-          return;
-        }
+    this.targetHasLowSecurity =
+      this.target.security() <= this.target.minSecurity() + SECURITY_BUFFER;
+  }
 
-        this.addPodAttack(prepAttack);
+  cleanup() {
+    for (let attack of this.attacks) {
+      if (!attack.isRunning()) {
+        this.attacks.delete(attack);
       }
     }
-  }
-
-  allDelayedAttacks() {
-    let delayedAttacks = [];
-    for (let target of Object.keys(this.attacks)) {
-      for (let attack of this.attacks[target]) {
-        delayedAttacks.push(...attack.delayedAttacks);
-      }
-    }
-
-    return delayedAttacks;
-  }
-
-  * podAttacks() {
-    for (let podAttacks of Object.values(this.attacks)) {
-      for (let attack of podAttacks) {
-        yield attack;
-      }
-    }
-  }
-
-  async runAttacks(time) {
-    let workers = await this.workers();
-
-    let delayedAttacks = this.allDelayedAttacks();
-
-    for (let attack of this.podAttacks()) {
-      attack.run(time, workers, delayedAttacks);
-    }
-  }
-
-  cleanupAttacks() {
-    let removedAttacks = false;
-    for (let target of Object.keys(this.attacks)) {
-      let attacks = this.attacks[target];
-      this.attacks[target] = attacks.filter(a => a.isRunning());
-      if (attacks.length > this.attacks[target].length) removedAttacks = true;
-    }
-    return removedAttacks;
-  }
-
-  async hasFreeRam() {
-    let workers = await this.workers();
-    return workers.reduce((sum, s) => {
-      let available = s.availableRam();
-      if (available >= 5) {
-        return available + sum;
-      } else {
-        return sum;
-      }
-    }, 0);
   }
 
   async perform() {
@@ -214,100 +105,170 @@ class ThisScript extends TK.Script {
     );
     if (this.hasArg("--prepAll")) return this.prepareAll();
 
-    this.attacks = {};
+    this.queue = Queue.createInstance();
+    this.addFinally(() => this.queue.shutdown());
 
-    let ramManager = new RamManager(this.ns);
-    let workers = await this.workers();
-    ramManager.setServers(workers);
-    await this.startAttacks(this.now(), ramManager);
-    this.log(`have pod attacks: ${this.countPodAttacks()}`);
+    await this.fillWorkers({wait: true});
+    this.addFinally(() => this.procs.forEach(p => p.kill()));
+
+    this.attacks = new Set();
+    // TODO: Need a way to handle dying in new world
+    // just send new type of request?
+    // also don't fill dying workers
+
+    let count = 0;
+    let sleepMs = 10;
+    let periodic = 5000 / sleepMs;
+    this.threadManager = new ThreadManager(this.ns, this.queue);
 
     while (true) {
-      try {
-        let workers = await this.workers();
-        clearProcRunningCache();
-        ramManager.setServers(workers);
+      if (count % periodic === 0) {
+        count = 0;
+        await this.fillWorkers();
+      }
 
-        let now = this.now();
-        let removed = this.cleanupAttacks();
-        if (removed) {
-          await this.startAttacks(now, ramManager);
-          this.log(`have pod attacks: ${this.countPodAttacks()}`);
-        }
+      this.cleanup();
 
-        await this.runAttacks(now);
+      let now = this.now();
+
+      let target = await this.determineTarget();
+      await this.createPrepAttacks(now);
+      this.createPodAttack(target, now);
+
+      this.runAttacks(now);
+
+      if (count % periodic === 0) {
         this.updateStatus();
-      } catch (e) {
-        if (e instanceof String && e.indexOf("Invalid IP or hostname") !== -1) {
-          this.log(`Caught ${e}, ignoring`);
-        } else {
-          throw e;
-        }
       }
 
-      await this.sleep(100);
-    }
-  }
-
-  countPodAttacks() {
-    let count = 0;
-    for (let attack of this.podAttacks()) {
+      await this.sleep(sleepMs);
       count++;
     }
-    return count;
   }
 
-  createFullPodAttack(server, priority, startTime, ramManager) {
-    let hackThreads = server.threadsForHack(0.5);
-    let growThreads = Math.ceil(server.threadsForGrowth(2));
+  runAttacks(now) {
+    let target;
+    let hasLowSec = false;
 
-    priority++;
+    for (let attack of this.attacks) {
+      if (!target || target.name !== attack.server.name) {
+        target = attack.server;
+        hasLowSec = target.security() <= target.minSecurity() + SECURITY_BUFFER;
+      }
 
-    let timings = server.hackTimings();
+      if (hasLowSec || attack.canRunHighSec) attack.run(now);
+    }
+  }
 
-    const createAttack = (parent, priority) => {
-      return new PodAttack(this.ns, {
-        parent,
-        startTime,
-        priority,
-        hackThreads,
-        growThreads,
-        server,
-        timings,
-        ramManager,
+  addAttack(attack) {
+    this.lastAttack = attack;
+    this.attacks.add(attack);
+
+    if (this.target.name === attack.server.name && attack.fullRun) {
+      this.targetHacks++;
+    }
+  }
+
+  parentAttack(target) {
+    if (this.lastAttack) {
+      if (this.lastAttack.server.name === target.name) {
+        return this.lastAttack;
+      }
+    }
+
+    return null;
+  }
+
+  async createPrepAttacks(now) {
+    for (let target of await this.serversToAttack()) {
+      if (this.threadManager.availableThreads() < 10) return;
+      if (this.readyToAttack(target)) continue;
+
+      let attack = new PodAttack(this.ns, {
+        queue: this.queue,
+        startTime: now,
+        server: target,
+        threadManager: this.threadManager,
+        canRunHighSec: true,
+        firstRun: true,
       });
-    };
+      this.addAttack(attack);
+      if (!attack.fullRun) return;
+    }
+  }
 
-    const firstAttack = createAttack(null, priority);
-    if (firstAttack.dead) return true;
-    this.addPodAttack(firstAttack);
+  createPodAttack(target, now) {
+    if (this.threadManager.availableThreads() <= 10) return;
 
-    let lastAttack = firstAttack;
+    let hackThreads = target.threadsForHack(0.5);
+    let growThreads = Math.ceil(target.threadsForGrowth(2));
+    let weakenThreads =
+      Math.ceil((hackThreads * HACK_SECURITY_COST) / WEAKEN_SECURITY_HEAL) +
+      Math.ceil((growThreads * GROW_SECURITY_COST) / WEAKEN_SECURITY_HEAL);
 
-    let count = 0;
-    while (true) {
-      count++;
-      if (count > 900) {
-        this.tlog(`Manual break on creating ${server.name} pod attacks?`);
-        this.tlog("First end time: " + firstAttack.firstEndTime());
-        this.tlog(`Last attack:`);
-        this.tlog(lastAttack.infos(startTime).join("\n"));
-        this.tlog(`Timings: ${JSON.stringify(timings, null, 2)}`);
-        break;
-      }
+    if (this.targetHacks === 0) {
+      let firstAttack = new PodAttack(this.ns, {
+        parent: this.parentAttack(target),
+        queue: this.queue,
+        startTime: now,
+        server: target,
+        threadManager: this.threadManager,
+        canRunHighSec: !this.targetHasLowSecurity,
+        firstRun: true,
+      });
+      this.addAttack(firstAttack);
+    } else if (!this.targetHasLowSecurity) {
+      return;
+    }
 
-      priority++;
-      let newAttack = createAttack(lastAttack, priority);
-      if (!newAttack.dead && newAttack.isValid(firstAttack)) {
-        this.addPodAttack(newAttack);
-        lastAttack = newAttack;
-      } else {
+    while (
+      this.threadManager.availableThreads() >
+      hackThreads + growThreads + weakenThreads
+    ) {
+      let attack = new PodAttack(this.ns, {
+        parent: this.parentAttack(target),
+        queue: this.queue,
+        startTime: now,
+        server: target,
+        priority: 0,
+        threadManager: this.threadManager,
+        canRunHighSec: !this.targetHasLowSecurity,
+      });
+
+      this.addAttack(attack);
+      if (!this.targetHasLowSecurity && !attack.isValid()) {
         break;
       }
     }
+  }
 
-    if (lastAttack.dead) return true;
-    return false;
+  async fillWorkers({wait = false} = {}) {
+    if (!this.procs) this.procs = new Set();
+    await this.nukeServers();
+
+    let ramPerThread = scriptRam(this.ns, WORKER_SCRIPT);
+    for (let worker of await this.workers()) {
+      let threads = Math.floor(worker.availableRam() / ramPerThread);
+      if (threads <= 0) continue;
+
+      let proc = new TK.Process(this.ns, {
+        server: worker,
+        script: WORKER_SCRIPT,
+        args: [threads, this.queue.UUID, worker.name],
+        scriptRam: ramPerThread,
+        threads,
+      });
+
+      proc.run();
+      this.procs.add(proc);
+    }
+
+    // Give the workers time to startup
+    if (!wait) return;
+
+    while (this.queue.workerCount() < this.procs.size) {
+      await this.sleep(500);
+    }
   }
 
   printTimes(name) {
@@ -337,48 +298,34 @@ class DelayedAttack extends NSObject {
   constructor(
     ns,
     {
-      priority,
       startTime = 0,
       duration = null,
-      script,
+      type,
       threads,
-      args,
-      podAttack,
-      ramManager,
+      target,
+      queue,
+      threadManager,
     }
   ) {
     super(ns);
-    this.priority = priority;
-    this.script = script;
-    this.args = args;
+    this.type = type;
+    this.target = target;
     this.startTime = startTime;
     this.threads = threads;
     this.duration = duration;
-    this.podAttack = podAttack;
+    this.queue = queue;
     this.procs = [];
+    this.running = false;
+    this.started = false;
 
-    if (this.threads === 0) {
-      throw new Error(`Started delayed attack with 0 threads?`);
-    } else {
-      this.dead = false;
+    if (!_.isNumber(this.threads) || this.threads <= 0) {
+      throw new Error(
+        `Started delayed attack with bad threads: ${this.threads}`
+      );
     }
 
-    this.ramManager = ramManager;
-    this.scheduledThreads = ramManager.scheduleAttack(this);
-    if (this.scheduledThreads === false) {
-      this.dead = true;
-    } else if (DEBUG)
-      this.log(`Scheduling: ${this.info()}: ${this.scheduleInfo()}`);
-  }
-
-  scheduleInfo() {
-    if (this.scheduledThreads === false) return "No threads scheduled";
-    let info = {};
-    for (let [server, data] of _.hashEach(this.scheduledThreads)) {
-      info[server] = [data.threads, data.threads * this.ramPerThread()];
-    }
-
-    return json(info);
+    this.threadManager = threadManager;
+    threadManager.allocate(this);
   }
 
   endTime() {
@@ -395,22 +342,23 @@ class DelayedAttack extends NSObject {
     let now = this.ns.getTimeSinceLastAug();
     let start = Math.floor((this.startTime - now) / 1000);
     let duration = Math.floor(this.duration / 1000);
+    let running = this.running ? "Not Running" : "Running";
+    let allocs = _.toArray(this.serverAllocs || [])
+      .map(([server, threads]) => `${server}=${threads}`)
+      .join(",");
 
-    let threadInfo = [];
-    for (let serverName of Object.keys(this.scheduledThreads)) {
-      let info = this.scheduledThreads[serverName];
-      threadInfo.push(`${serverName}=${info.threads}`);
-    }
-
-    return `DelayedAttack ${this.script} P:${this.priority} T:${
-      this.threads
-    } S:${start} D:${duration} Scheudled:${threadInfo.join(",")}`;
+    return `${this.type} T:${this.threads} ${allocs} S:${start} D:${duration}`;
   }
 
-  runIfTime(now, workers, otherAttacks) {
-    if (this.dead || this.procs.length > 0) return true;
+  isRunning() {
+    if (!this.started) return true;
+    return this.running;
+  }
+
+  runIfTime(now) {
+    if (this.started) return true;
     if (now > this.startTime) {
-      return this.run(workers, otherAttacks);
+      this.run();
     }
 
     return true;
@@ -418,114 +366,30 @@ class DelayedAttack extends NSObject {
 
   reclaim() {
     if (this.reclaimed) return;
-    if (DEBUG)
-      this.log(
-        `Reclaiming ${this.info()} procs: ${this.procs
-          .map(p => p.UUID)
-          .join(",") || "[]"} ${this.scheduleInfo()}`
-      );
-    if (this.scheduledThreads) {
-      this.ramManager.reclaim(this.scheduledThreads, this.ramPerThread());
-    }
+    this.threadManager.reclaim(this);
     this.reclaimed = true;
   }
 
-  isRunning() {
-    let running = this._isRunning();
-    if (!running) this.reclaim();
-    return running;
-  }
-
-  _isRunning() {
-    if (this.dead) return false;
-    if (this.procs.length === 0) return true;
-    return this.procs.some(p => procIsRunning(p));
-  }
-
-  ram() {
-    return this.ramPerThread() * this.threads;
-  }
-
-  ramPerThread() {
-    return scriptRam(this.ns, this.script);
-  }
-
   hasStarted() {
-    if (this.dead) return true;
-    return this.procs.length > 0;
+    return this.started;
   }
 
-  threadsForRam(ram) {
-    return Math.floor(ram / this.ramPerThread());
-  }
-
-  procServers() {
-    let servers = new Set();
-    for (let proc of this.procs) {
-      servers.add(proc.server);
-    }
-
-    return [...servers];
-  }
-
-  kill() {
-    if (this.dead) return;
-
-    this.procs.forEach(p => p.kill());
-    this.procs = [];
-    this.dead = true;
+  stopRun() {
+    this.running = false;
     this.reclaim();
-    if (this.podAttack) this.podAttack.kill();
-  }
-
-  isDead() {
-    return this.dead;
-  }
-
-  createProc(threads, server) {
-    return new TK.Process(this.ns, {
-      server,
-      script: this.script,
-      threads,
-      args: this.args,
-      scriptRam: scriptRam(this.ns, this.script),
-      duration: this.duration,
-    });
   }
 
   run() {
-    if (this.dead) return false;
+    if (this.started) return false;
+    this.started = true;
+    this.running = true;
 
-    this.procs = [];
-    for (let name of Object.keys(this.scheduledThreads)) {
-      let info = this.scheduledThreads[name];
-      this.procs.push(this.createProc(info.threads, info.server));
-    }
-
-    for (let proc of this.procs) {
-      try {
-        proc.run();
-      } catch (e) {
-        this.log(`ERROR Info: ${e.stack}`);
-        this.log(`Ram manager: ${json(this.ramManager.serverRam)}`);
-        this.log(this.scheduleInfo());
-        if (DEBUG) this.ramManager.dumpLog(proc.server);
-
-        throw e;
-      }
-    }
-
-    return true;
-  }
-
-  runningRam({podRam = true} = {}) {
-    if (podRam && this.podAttack) {
-      return this.podAttack.runningRam();
-    }
-
-    return this.procs
-      .filter(p => procIsRunning(p))
-      .reduce((sum, p) => sum + p.ram(), 0);
+    this.serverAllocs = this.queue.sendRequest(
+      this.type,
+      this.target.name,
+      this.threads,
+      () => this.stopRun()
+    );
   }
 }
 
@@ -534,21 +398,18 @@ class PodAttack extends NSObject {
     ns,
     {
       parent = null,
-      hackThreads = 0,
-      growThreads = 0,
-      mode = "attack",
       startTime = null,
       priority = null,
       server,
-      timings,
-      ramManager,
+      threadManager,
+      canRunHighSec = false,
+      queue,
+      firstRun = false,
     }
   ) {
     super(ns);
     if (!parent && startTime == null)
       throw new Error(`PodAttack needs parent or startTime`);
-    if (mode !== "attack" && mode !== "prepare")
-      throw new Error(`Unrecognized PodAttack mode: ${mode}`);
 
     this.parent = parent;
 
@@ -558,33 +419,26 @@ class PodAttack extends NSObject {
       this.startTime = startTime;
     }
 
-    this.dead = false;
     this.server = server;
     this.originalStartTime = startTime;
-    this.hackThreads = hackThreads;
-    this.growThreads = growThreads;
     this.priority = priority;
+    this.canRunHighSec = canRunHighSec;
+    this.queue = queue;
+    this.firstRun = firstRun;
 
+    let timings = server.attackTimings();
     this.hackTime = timings.hackTime;
     this.growTime = timings.growTime;
     this.weakenTime = timings.weakenTime;
 
-    this.ramManager = ramManager;
+    this.threadManager = threadManager;
+    this.delayedAttacks = [];
 
-    if (mode === "attack") {
-      this.setupAttack();
-    } else if (mode === "prepare") {
-      this.setupPrepare();
-    }
-
-    if (this.anyAttackIsDead()) {
-      this.dead = true;
-      this.kill();
-    }
+    this.setupAttack();
   }
 
-  anyAttackIsDead() {
-    return this.delayedAttacks.some(a => a.dead);
+  get threads() {
+    return this.delayedAttacks.reduce((sum, e) => sum + e.threads, 0);
   }
 
   reclaim() {
@@ -595,128 +449,156 @@ class PodAttack extends NSObject {
     return Math.min(...this.delayedAttacks.map(a => a.endTime()));
   }
 
-  isValid(firstAttack) {
-    return this.startTime < firstAttack.firstEndTime();
+  firstAttack() {
+    if (this.parent) return this.parent.firstAttack();
+    return this;
   }
 
-  setupPrepare() {
-    let growThreads = this.server.threadsForMaxGrowth();
+  isValid(firstAttack) {
+    return this.startTime < this.firstAttack().firstEndTime();
+  }
 
-    this.delayedAttacks = [];
-    if (growThreads > 0) {
-      this.delayedAttacks.push(
-        new DelayedAttack(this.ns, {
-          priority: this.priority,
-          startTime: 0,
-          script: GROW_SCRIPT,
-          threads: growThreads,
-          args: [this.server.name, 1],
-          duration: this.growTime,
-          podAttack: this,
-          ramManager: this.ramManager,
-        })
+  attackThreads(desiredThreads, securityCostPerThread) {
+    let attackThreads = desiredThreads;
+    let weakenThreads = Math.ceil(
+      (attackThreads * securityCostPerThread) / WEAKEN_SECURITY_HEAL
+    );
+
+    let maxThreads = this.threadManager.availableThreads();
+    if (maxThreads < attackThreads + weakenThreads) {
+      // First assign weaken threads for min weaken
+      weakenThreads = this.server.threadsForMinWeaken();
+      maxThreads -= weakenThreads;
+
+      let weakenThreadsPerAttack = securityCostPerThread / WEAKEN_SECURITY_HEAL;
+      // Attack as much as possible while still weakening
+      attackThreads = Math.max(
+        0,
+        Math.floor(maxThreads / (1 + weakenThreadsPerAttack))
+      );
+      weakenThreads += Math.ceil(attackThreads * weakenThreadsPerAttack);
+    }
+
+    if (weakenThreads <= 0 && desiredThreads > 0) {
+      throw new Error(
+        `Computed 0 or less weaken threads for attack? ${weakenThreads}, D:${desiredThreads}, available: ${this.threadManager.availableThreads()}`
       );
     }
 
-    let weakenThreads = this.server.threadsForMinWeaken({
-      extraGrow: growThreads,
-    });
+    return {
+      attackThreads,
+      weakenThreads,
+      fullRun: desiredThreads === attackThreads,
+    };
+  }
+
+  setupGrow() {
+    let growThreads = this.server.threadsForGrowth(2);
+    if (this.firstRun) {
+      growThreads = this.server.threadsForMaxGrowth();
+    }
+
+    let {attackThreads, weakenThreads, fullRun} = this.attackThreads(
+      growThreads,
+      GROW_SECURITY_COST
+    );
+
+    if (attackThreads > 0) {
+      this.delayedAttacks.push(
+        new DelayedAttack(this.ns, {
+          queue: this.queue,
+          startTime: this.startGrowTime(),
+          type: Request.GROW,
+          threads: attackThreads,
+          target: this.server,
+          duration: this.growTime,
+          podAttack: this,
+          threadManager: this.threadManager,
+        })
+      );
+    }
 
     if (weakenThreads > 0) {
       this.delayedAttacks.push(
         new DelayedAttack(this.ns, {
-          priority: this.priority,
-          startTime: 0,
-          script: WEAKEN_SCRIPT,
+          queue: this.queue,
+          startTime: this.startWeakenGrowTime(),
+          type: Request.WEAKEN,
           duration: this.weakenTime,
-          threads: this.server.threadsForMinWeaken({extraGrow: growThreads}),
-          args: [this.server.name],
+          threads: weakenThreads,
+          target: this.server,
           podAttack: this,
-          ramManager: this.ramManager,
+          threadManager: this.threadManager,
         })
       );
     }
+
+    return fullRun;
   }
 
-  setupAttack() {
-    this.weakenGrowThreads = Math.ceil((this.growThreads * 0.004) / 0.05);
-    this.weakenHackThreads = Math.ceil((this.hackThreads * 0.002) / 0.05);
-
-    this.delayedAttacks = [
-      new DelayedAttack(this.ns, {
-        priority: this.priority,
-        script: WEAKEN_SCRIPT,
-        threads: this.weakenHackThreads,
-        args: [this.server.name],
-        startTime: this.startWeakenHackTime(),
-        duration: this.weakenTime,
-        podAttack: this,
-        ramManager: this.ramManager,
-      }),
-      new DelayedAttack(this.ns, {
-        priority: this.priority,
-        script: WEAKEN_SCRIPT,
-        threads: this.weakenGrowThreads,
-        startTime: this.startWeakenGrowTime(),
-        args: [this.server.name],
-        duration: this.weakenTime,
-        podAttack: this,
-        ramManager: this.ramManager,
-      }),
-      new DelayedAttack(this.ns, {
-        priority: this.priority,
-        startTime: this.startHackTime(),
-        script: HACK_SCRIPT,
-        threads: this.hackThreads,
-        args: [this.server.name, 0],
-        duration: this.hackTime,
-        podAttack: this,
-        ramManager: this.ramManager,
-      }),
-      new DelayedAttack(this.ns, {
-        priority: this.priority,
-        startTime: this.startGrowTime(),
-        script: GROW_SCRIPT,
-        threads: this.growThreads,
-        args: [this.server.name, 1],
-        duration: this.growTime,
-        podAttack: this,
-        ramManager: this.ramManager,
-      }),
-    ];
-  }
-
-  run(time, servers, otherAttacks) {
-    for (let attack of this.delayedAttacks) {
-      let successfullyRun = attack.runIfTime(time, servers, otherAttacks);
-      if (!successfullyRun) {
-        this.log(`Killing after runIfTime`);
-        this.kill();
+  // Must be called after setupGrow
+  setupHack() {
+    if (this.firstRun) {
+      if (this.server.maxMoney() * 0.95 > this.server.money()) {
         return;
       }
     }
+
+    let {attackThreads, weakenThreads, fullRun} = this.attackThreads(
+      this.server.threadsForHack(0.5),
+      HACK_SECURITY_COST
+    );
+
+    if (attackThreads > 0) {
+      this.delayedAttacks.push(
+        new DelayedAttack(this.ns, {
+          queue: this.queue,
+          priority: this.priority,
+          startTime: this.startHackTime(),
+          type: Request.HACK,
+          threads: attackThreads,
+          target: this.server,
+          duration: this.hackTime,
+          podAttack: this,
+          threadManager: this.threadManager,
+        })
+      );
+    }
+
+    if (weakenThreads > 0) {
+      this.delayedAttacks.push(
+        new DelayedAttack(this.ns, {
+          queue: this.queue,
+          priority: this.priority,
+          startTime: this.startWeakenHackTime(),
+          type: Request.WEAKEN,
+          duration: this.weakenTime,
+          threads: weakenThreads,
+          target: this.server,
+          podAttack: this,
+          threadManager: this.threadManager,
+        })
+      );
+    }
+
+    return fullRun;
   }
 
-  kill() {
-    this.dead = true;
-    this.delayedAttacks.forEach(a => a.kill());
-    this.reclaim();
+  setupAttack() {
+    let fullRun = this.setupGrow();
+    if (fullRun) fullRun = this.setupHack();
+    this.fullRun = fullRun;
+    return fullRun;
   }
 
   isRunning() {
-    if (this.dead) return false;
-    for (let attack of this.delayedAttacks) {
-      if (attack.isRunning()) return true;
-    }
-
-    return false;
+    return this.delayedAttacks.some(a => a.isRunning());
   }
 
-  runningRam() {
-    return this.delayedAttacks.reduce(
-      (sum, attack) => sum + attack.runningRam({podRam: false}),
-      0
-    );
+  run(time) {
+    for (let attack of this.delayedAttacks) {
+      attack.runIfTime(time);
+    }
   }
 
   startWeakenGrowTime() {
@@ -762,244 +644,45 @@ class PodAttack extends NSObject {
 
   infos() {
     return this.delayedAttacks.map(
-      a => `Pod T:${this.server.name} P:${this.priority} ${a.info()}`
+      a => `Pod T:${this.server.name} ${a.info()}`
     );
   }
 
   info() {
-    if (this.mode === "attack") {
-      return [
-        `Hack: ${this.offsetTime(this.startHackTime())} to ${this.offsetTime(
-          this.endHackTime()
-        )} D: ${this.rounded(this.hackTime)} T: ${this.hackThreads}`,
-        `Weaken Hack: ${this.offsetTime(
-          this.startWeakenHackTime()
-        )} to ${this.offsetTime(this.endWeakenHackTime())} D: ${this.rounded(
-          this.weakenTime
-        )} T: ${this.weakenHackThreads}`,
-        `Grow: ${this.offsetTime(this.startGrowTime())} to ${this.offsetTime(
-          this.endGrowTime()
-        )} D: ${this.rounded(this.growTime)} T: ${this.growThreads}`,
-        `Weaken Grow: ${this.offsetTime(
-          this.startWeakenGrowTime()
-        )} to ${this.offsetTime(this.endWeakenGrowTime())} D: ${this.rounded(
-          this.weakenTime
-        )} T: ${this.weakenGrowThreads}`,
-      ].join(" ");
-    } else {
-      let infos = this.delayedAttacks.map(a => a.info());
-      return infos.join(" | ");
-    }
+    let infos = this.delayedAttacks.map(a => a.info());
+    return infos.join(" | ");
   }
 }
 
-class RamManager extends NSObject {
-  constructor(ns) {
+class ThreadManager extends NSObject {
+  constructor(ns, queue) {
     super(ns);
-    this.serverRam = {};
-    this.cacheStart = this.ns.getTimeSinceLastAug();
-    this.eventLog = new Map();
+    this.queue = queue;
+    this.allocatedThreads = 0;
   }
 
-  addLogEvent(event, server) {
-    if (!DEBUG) return;
-    let events = this.eventLog.get(server.name) || [];
-    events.push(event);
-    if (!this.eventLog.has(server.name)) this.eventLog.set(server.name, events);
+  availableThreads() {
+    return this.queue.maxThreads - this.allocatedThreads;
   }
 
-  dumpLog(server) {
-    if (!this.eventLog.has(server.name))
-      return this.log("Tried to dump ${server.name}, but no events!");
-    this.log(
-      `Dumping event log for: ${server.name}:\n` +
-        this.eventLog.get(server.name).join("\n")
-    );
+  canAllocate(pod) {
+    return pod.threads < this.availableThreads();
   }
 
-  setServers(servers) {
-    let now = this.ns.getTimeSinceLastAug();
-    let recheckTotals = this.cacheStart + 300000 < now;
-
-    for (let server of servers) {
-      let info = {};
-      let dying = server.isDying();
-      let oldDying = info.dying;
-
-      if (server.name in this.serverRam) {
-        info = this.serverRam[server.name];
-        if (dying !== oldDying) {
-          this.addLogEvent(
-            `Changing dying status for ${server.name} to: ${dying}`,
-            server
-          );
-        }
-
-        info.dying = dying;
-        if (recheckTotals || dying !== oldDying) {
-          let totalRam = server.ram();
-
-          // Did the server grow because of a purchase action?
-          if (totalRam > info.total) {
-            let oldTotal = info.total;
-            info.available += totalRam - info.total;
-            info.total = totalRam;
-            this.addLogEvent(
-              `Increasing total ram on ${server.name} from ${oldTotal} to ${totalRam}, A: ${info.available}`,
-              server
-            );
-          }
-        }
-      } else {
-        let [total, used] = server.ramInfo();
-        let available = total - used;
-
-        info = {
-          available,
-          total,
-          dying,
-        };
-
-        this.addLogEvent(
-          `Setting ram info for ${server.name}, dying: ${dying} t: ${total} A: ${available}`,
-          server
-        );
-      }
-
-      this.serverRam[server.name] = info;
-    }
-
-    this.servers = servers;
-    if (recheckTotals) this.cacheStart = this.ns.getTimeSinceLastAug();
-
-    this.sortServers();
-    this.selectServer(0);
-  }
-
-  getAvailableRam(server) {
-    if (server.name in this.serverRam) {
-      let info = this.serverRam[server.name];
-      if (info.dying) return 0;
-      return Math.max(info.available - 1, 0); // add padding for floating point errors
-    } else {
-      throw new Error(`Unkown server in getAvailableRam: ${server.name}`);
-    }
-  }
-
-  selectServer(index) {
-    this.selectedServerIndex = index;
-    this.selectedServer = this.servers[index];
-    return this.selectedServer;
-  }
-
-  selectNextServer() {
-    let index = this.selectedServerIndex + 1;
-    if (index < this.servers.length) {
-      return this.selectServer(index);
-    } else {
-      this.sortServers();
-      return this.selectServer(0);
-    }
-  }
-
-  sortServers() {
-    this.servers = this.servers.sort((a, b) => {
-      if (a.isPurchased() && !b.isPurchased()) {
-        return -1;
-      } else if (!a.isPurchased() && b.isPurchased()) {
-        return 1;
-      } else {
-        return this.getAvailableRam(b) - this.getAvailableRam(a);
-      }
-    });
-  }
-
-  threadsForServers(ramPerThread) {
-    let threads = 0;
-    for (let server of this.servers) {
-      let available = this.getAvailableRam(server);
-      threads += Math.floor(available / ramPerThread);
-    }
-    return threads;
-  }
-
-  reclaim(scheduledThreads, ramPerThread) {
-    for (let info of Object.values(scheduledThreads)) {
-      let server = info.server;
-      if (!(server.name in this.serverRam)) continue;
-
-      this.incrementRam(server, info.threads * ramPerThread);
-      this.addLogEvent(
-        `Reclaiming ${info.threads} R:${info.threads * ramPerThread} to ${
-          server.name
-        } A: ${this.getAvailableRam(server)}`,
-        server
-      );
-    }
-  }
-
-  incrementRam(server, by) {
-    let info = this.serverRam[server.name];
-    info.available += by;
-  }
-
-  scheduleAttack(delayedAttack) {
-    let unallocatedThreads = delayedAttack.threads;
-    let ramPerThread = delayedAttack.ramPerThread();
-    if (this.threadsForServers(ramPerThread) < unallocatedThreads) {
-      this.log(`RamManager: out of ram`);
-      return false;
-    }
-
-    let currentServer = this.selectedServer;
-
-    let serversToThreads = {};
-    while (true) {
-      let availableThreads = Math.floor(
-        this.getAvailableRam(currentServer) / ramPerThread
-      );
-
-      if (availableThreads > 0) {
-        let allocatedThreads = Math.min(availableThreads, unallocatedThreads);
-        unallocatedThreads -= allocatedThreads;
-
-        serversToThreads[currentServer.name] = {
-          threads: allocatedThreads,
-          server: currentServer,
-        };
-
-        this.incrementRam(currentServer, allocatedThreads * ramPerThread * -1);
-
-        this.addLogEvent(
-          `Allocating ${allocatedThreads} R:${allocatedThreads *
-            ramPerThread} to ${currentServer.name} A: ${this.getAvailableRam(
-            currentServer
-          )}`,
-          currentServer
-        );
-      }
-
-      if (unallocatedThreads > 0) {
-        currentServer = this.selectNextServer();
-        if (currentServer.name in serversToThreads) {
-          break;
-        }
-      } else {
-        break;
-      }
-    }
-
-    if (unallocatedThreads > 0) {
+  allocate(attack) {
+    if (attack.threads > this.availableThreads()) {
       throw new Error(
-        `Unable to allocate all threads: ${unallocatedThreads}, wanted: ${
-          delayedAttack.threads
-        }, threadsForServers: ${this.threadsForServers(
-          ramPerThread
-        )}, ramPerThread: ${ramPerThread}?`
+        `Cannot allocate ${
+          attack.threads
+        }, only have ${this.availableThreads()}`
       );
     }
 
-    return serversToThreads;
+    this.allocatedThreads += attack.threads;
+  }
+
+  reclaim(attack) {
+    this.allocatedThreads -= attack.threads;
   }
 }
 
@@ -1036,25 +719,6 @@ function moneyPerRam(server) {
   let money = server.maxMoney() * 0.5;
 
   return money / ram;
-}
-
-let RUNNING_CACHE = {};
-function clearProcRunningCache() {
-  RUNNING_CACHE = {};
-}
-
-function procIsRunning(proc) {
-  if (!(proc.UUID in RUNNING_CACHE)) {
-    let running = false;
-    try {
-      running = proc.isRunning();
-    } catch (e) {
-      running = false;
-    }
-
-    RUNNING_CACHE[proc.UUID] = running;
-  }
-  return RUNNING_CACHE[proc.UUID];
 }
 
 let RAM_SCRIPT_CACHE = {};

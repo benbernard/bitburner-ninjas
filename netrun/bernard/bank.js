@@ -371,8 +371,8 @@ export class BankScript extends BaseScript {
       maxMoney: 0,
     };
 
-    // this.addWallet({name: "gang", portion: 0.3});
-    this.addWallet({name: "servers", portion: 0.99, priority: 4});
+    this.addWallet({name: "gang", portion: 0.01});
+    this.addWallet({name: "servers", portion: 0.9, priority: 4});
     this.addWallet({
       name: "stocks",
       portion: 0.01,

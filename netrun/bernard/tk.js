@@ -1,14 +1,12 @@
-import * as BASE from "./baseScript.js";
+import {NSObject, BaseScript} from "./baseScript.js";
 import traverse from "./traverse.js";
-
-let _ = BASE._;
-let copy = BASE.copy;
+import {_, copy} from "./utils.js";
 
 const DYING_FILE = "dying.txt";
 
 const LIBRARY_FILES = ["baseScript.js", "tk.js"];
 
-export class Server extends BASE.NSObject {
+export class Server extends NSObject {
   constructor(ns, name, parent) {
     super(ns);
     this.name = name;
@@ -23,7 +21,7 @@ export class Server extends BASE.NSObject {
     // this.name !== "hacknet-node-1"
   }
 
-  hackTimings() {
+  attackTimings() {
     if (!this._timings) {
       this._timings = {
         hackTime: this.hackTime() * 1000,
@@ -33,6 +31,10 @@ export class Server extends BASE.NSObject {
     }
 
     return this._timings;
+  }
+
+  clearTimingsCache() {
+    this._timings = null;
   }
 
   hackingLevel() {
@@ -187,7 +189,7 @@ export class Server extends BASE.NSObject {
   }
 
   threadsForGrowth(multiplier) {
-    return this.ns.growthAnalyze(this.name, multiplier);
+    return Math.ceil(this.ns.growthAnalyze(this.name, multiplier));
   }
 
   hasRoot() {
@@ -460,7 +462,7 @@ export class Server extends BASE.NSObject {
   }
 }
 
-export class Script extends BASE.BaseScript {
+export class Script extends BaseScript {
   get home() {
     if (!this._home) this._home = this.server("home");
     return this._home;
@@ -493,7 +495,7 @@ export class ServerScript extends Script {
   }
 }
 
-export class Process extends BASE.NSObject {
+export class Process extends NSObject {
   constructor(
     ns,
     {server, duration = null, scriptRam = null, script, threads = 1, args = []}

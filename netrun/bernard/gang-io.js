@@ -6,6 +6,7 @@ const map = {
   war: TASKS.TERRITORY_WARFARE,
   wanted: TASKS.VIGILANTE_JUSTICE,
   vigilante: TASKS.VIGILANTE_JUSTICE,
+  mug: TASKS.MUG,
 };
 
 class ThisScript extends TK.Script {

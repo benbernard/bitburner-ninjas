@@ -49,7 +49,7 @@ class ThisScript extends TK.Script {
         mode: "prepare",
         server,
         startTime: now,
-        timings: server.hackTimings(),
+        timings: server.attackTimings(),
         ramManager,
       });
 
@@ -134,7 +134,7 @@ class ThisScript extends TK.Script {
           server,
           priority,
           startTime: now,
-          timings: server.hackTimings(),
+          timings: server.attackTimings(),
           ramManager,
         });
 
@@ -263,7 +263,7 @@ class ThisScript extends TK.Script {
 
     priority++;
 
-    let timings = server.hackTimings();
+    let timings = server.attackTimings();
 
     const createAttack = (parent, priority) => {
       return new PodAttack(this.ns, {

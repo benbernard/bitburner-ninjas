@@ -2,10 +2,11 @@ import * as TK from "./tk.js";
 import {EquipmentSet, Gang, TASKS} from "./gangs.js";
 import {BankMessaging} from "./messaging.js";
 
-let EXCLUDED_NAMES = ["Madeline", "Emily"];
+let EXCLUDED_NAMES = ["Madeline"];
 
 class ThisScript extends TK.Script {
   async perform() {
+    this.disableLogging("sleep");
     this.gang = new Gang(this.ns);
     this.bank = new BankMessaging(this.ns);
 
@@ -53,6 +54,8 @@ class ThisScript extends TK.Script {
       .normalEquipment({includeAugments: false})
       .reduce((sum, e) => sum + e.cost, 0);
 
+    this.log(`Ascension cost: ${ascensionCost}`);
+
     if (ascensionCost > amount) return;
 
     let members = this.gang.members();
@@ -61,8 +64,8 @@ class ThisScript extends TK.Script {
       if (!this.fullyOwnsEquipment(member)) continue;
       if (EXCLUDED_NAMES.indexOf(member.name) !== -1) continue;
 
-      let ascensionsNeeded = member.ascensionsNeeded();
-      if (ascensionsNeeded * ascensionCost >= amount) continue;
+      // let ascensionsNeeded = member.ascensionsNeeded();
+      // if (ascensionsNeeded * ascensionCost >= amount) continue;
 
       while (!member.fullyAscended()) {
         if (ascensionCost < amount) {

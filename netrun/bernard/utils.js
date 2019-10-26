@@ -50,6 +50,10 @@ export let _ = {
     return typeof val === "function";
   },
 
+  isNumber(val) {
+    return typeof val === "number";
+  },
+
   constant(val) {
     return () => val;
   },
