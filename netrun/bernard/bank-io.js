@@ -22,11 +22,10 @@ class ThisScript extends BaseScript {
     } else if (action === "set") {
       let sets = [];
       for (let arg of this.args) {
-        let info = arg.split("=");
+        let info = arg.split(":");
         let [name, amount] = info;
         let set = {name, amount: convertStrToMoney(amount)};
         if (info.length > 2) {
-          this.tlog(info[2]);
           set.portion = parseFloat(info[2]);
         }
         sets.push(set);

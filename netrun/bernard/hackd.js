@@ -9,18 +9,23 @@ class ThisScript extends BaseScript {
     this.log(`Spawned with ${threads} max threads`);
     this.queue = Queue.getInstance(queueUUID);
 
-    this.maxThreads = threads;
+    this.maxThreads = threads - 1;
     this.allocatedThreads = 0;
     this.workerThreads = new Set();
     this.serverName = serverName;
   }
 
+  canAllocate(threads) {
+    return this.allocatedThreads + threads <= this.maxThreads;
+  }
+
   addWorkerThread(promise, threads) {
-    if (threads + this.allocatedThreads > this.maxThreads) {
+    if (!this.canAllocate(threads)) {
       throw new Error(
         `Overallocated threads: ${threads} max: ${this.maxThreads}, currently allocated: ${this.allocatedThreads}`
       );
     }
+
     this.allocatedThreads += threads;
     this.workerThreads.add(
       TrackablePromise.wrap(
@@ -46,7 +51,12 @@ class ThisScript extends BaseScript {
   }
 
   receiveRequest(req) {
-    this.workPromise.resolve(req);
+    this.workPromise.resolve();
+    this.makeNewWorkPromise();
+    this.cleanup();
+
+    let shutdown = this.handle(req);
+    if (shutdown) this.shutdown = true;
   }
 
   makeNewWorkPromise() {
@@ -80,12 +90,6 @@ class ThisScript extends BaseScript {
 
     while (true) {
       let result = await Promise.race(Array.from(this.workerThreads));
-      if (result && typeof result === "object" && result.isRequest) {
-        let shutdown = this.handle(result);
-        if (shutdown) break;
-
-        this.makeNewWorkPromise();
-      }
       this.cleanup();
     }
   }
@@ -97,7 +101,14 @@ class ThisScript extends BaseScript {
       req.resolve();
       this.exit();
       return true;
-    } else if (req.type === Request.HACK) {
+    }
+
+    if (!this.canAllocate(threads))
+      throw new Error(
+        `Cannot allocate ${threads}, max: ${this.maxThreads}, allocated: ${this.allocatedThreads}`
+      );
+
+    if (req.type === Request.HACK) {
       action = this.ns.hack(req.target, {threads: req.threads});
     } else if (req.type === Request.GROW) {
       action = this.ns.grow(req.target, {threads: req.threads});
@@ -110,13 +121,7 @@ class ThisScript extends BaseScript {
       throw err;
     }
 
-    this.log(
-      `Starting ${req.type}, threads: ${req.threads} against ${req.target}`
-    );
     action = action.finally(() => {
-      this.log(
-        `Finished ${req.type}, threads: ${req.threads} against ${req.target}`
-      );
       req.resolve();
     });
 

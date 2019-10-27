@@ -23,10 +23,16 @@ export class Server extends NSObject {
 
   attackTimings() {
     if (!this._timings) {
+      let hackTime = this.hackTime() * 1000;
+      let growTime = this.growTime() * 1000;
+      let weakenTime = this.weakenTime() * 1000;
       this._timings = {
-        hackTime: this.hackTime() * 1000,
-        growTime: this.growTime() * 1000,
-        weakenTime: this.weakenTime() * 1000,
+        hackTime: hackTime,
+        hack: hackTime,
+        growTime: growTime,
+        grow: growTime,
+        weakenTime: weakenTime,
+        weaken: weakenTime,
       };
     }
 

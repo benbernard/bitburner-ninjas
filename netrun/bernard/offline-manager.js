@@ -196,20 +196,43 @@ class StatTrain extends Action {
   constructor(ns, player, stat, target) {
     super(ns, player);
 
-    this.stat = canonicalStat(stat);
+    if (stat === "all") {
+      this.stats = [
+        canonicalStat("hack"),
+        canonicalStat("str"),
+        canonicalStat("dex"),
+        canonicalStat("def"),
+        canonicalStat("agi"),
+      ];
+    } else if (stat === "phy" || stat === "combat" || stat === "physical") {
+      this.stats = [
+        canonicalStat("str"),
+        canonicalStat("dex"),
+        canonicalStat("def"),
+        canonicalStat("agi"),
+      ];
+    } else {
+      this.stats = [canonicalStat(stat)];
+    }
     this.target = target;
   }
 
-  retrieveLevel() {
-    return this.player.getStat(this.stat);
+  targetMet() {
+    for (let stat of this.stats) {
+      if (this.player.getStat(stat) < this.target) return false;
+    }
+
+    return true;
   }
 
-  do() {
-    return this.player.trainTo(this.stat, this.target);
+  async do() {
+    for (let stat of this.stats) {
+      await this.player.trainTo(stat, this.target);
+    }
   }
 
   info() {
-    return `Raise ${this.stat} to ${this.target}`;
+    return `Raise ${this.stats.join(", ")} to ${this.target}`;
   }
 }
 

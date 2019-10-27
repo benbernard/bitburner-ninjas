@@ -10,6 +10,14 @@ export class Queue {
     return this.workers.size;
   }
 
+  shutdownWorker(serverName) {
+    for (let worker of this.workers) {
+      if (worker.serverName !== serverName) continue;
+      worker.receiveRequest(new Request(Request.SHUTDOWN));
+      this.workers.delete(worker);
+    }
+  }
+
   shutdown() {
     if (this.isShutdown()) return;
 

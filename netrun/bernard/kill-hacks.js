@@ -3,6 +3,7 @@ import {json} from "./utils.js";
 
 const HACKING_SCRIPTS = new Set([
   "hurricane.js",
+  "clown-car.js",
   "hydra-hack.js",
   "sharknado.js",
   "firegale.js",

@@ -181,13 +181,26 @@ export class BankScript extends BaseScript {
       amountSum = amountSum - wallet.amount + amount;
     }
 
+    let setBalancedAmounts = false;
+    if (req.data.sets.every(({amount}) => amount === 0)) {
+      setBalancedAmounts = true;
+    }
+    this.tlog(`Set balanced: ${setBalancedAmounts}`);
+
     let success = false;
-    if (amountSum < this.actualMoney()) {
+    let money = this.actualMoney();
+    if (amountSum < money) {
       success = true;
 
       for (let {name, amount, portion = null} of req.data.sets) {
         let wallet = this.wallet(name);
-        wallet.amount = amount;
+
+        if (setBalancedAmounts) {
+          wallet.amount = Math.floor(money * portion);
+        } else {
+          wallet.amount = amount;
+        }
+
         if (portion) {
           wallet.portion = portion;
         }
