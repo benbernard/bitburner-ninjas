@@ -177,7 +177,7 @@ class ThisScript extends TK.Script {
       this.cleanup();
 
       await this.createPrepAttacks(now);
-      if (this.prepAttacks.size > 0) {
+      if (this.prepAttacks.size > 0 || this.attacks.size > 0) {
         this.runAttacks(now);
       }
 
@@ -416,7 +416,7 @@ class DelayedAttack extends NSObject {
     let allocs = _.toArray(this.serverAllocs || [])
       .map(([server, threads]) => `${server}=${threads}`)
       .join(",");
-    let end = round2((now - this.endTime()) / 1000);
+    let end = Math.floor((this.endTime() - now) / 1000);
 
     return `${this.type} ${this.target.name} T:${this.threads} ${allocs} S:${start} D:${duration} E:${end}`;
   }

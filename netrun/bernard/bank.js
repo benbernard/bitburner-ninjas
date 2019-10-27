@@ -3,6 +3,7 @@ import {BankMessaging} from "./messaging.js";
 import {convertStrToMoney} from "./utils.js";
 
 const BANK_INFO_FILE = "bank-info.txt";
+const DEBUG = false;
 
 export class BankScript extends BaseScript {
   constructor(ns, doEventLoop = true) {
@@ -201,12 +202,13 @@ export class BankScript extends BaseScript {
           wallet.amount = amount;
         }
 
-        if (portion) {
+        if (portion != null) {
           wallet.portion = portion;
         }
       }
     }
 
+    this.saveState();
     return this.messaging.sendResponse(req, {success});
   }
 
@@ -275,10 +277,6 @@ export class BankScript extends BaseScript {
         let wallets = walletsHash[priority];
 
         for (let wallet of wallets) {
-          if (wallet.minMaxMoney && this.state.maxMoney < wallet.minMaxMoney) {
-            continue;
-          }
-
           if (wallet.reserve) {
             if (wallet.reserve > wallet.amount) {
               let wants = wallet.reserve - wallet.amount;
@@ -293,6 +291,14 @@ export class BankScript extends BaseScript {
             Math.floor(diff * wallet.portion),
             leftDiff
           );
+          if (DEBUG)
+            this.tlog(
+              `Adding ${this.cFormat(
+                Math.min(diffPortion)
+              )} diff was: ${Math.floor(diff)} to ${
+                wallet.name
+              } amount: ${this.cFormat(wallet.amount)}`
+            );
           wallet.amount += diffPortion;
           leftDiff = Math.max(leftDiff - diffPortion, 0);
         }
@@ -306,11 +312,15 @@ export class BankScript extends BaseScript {
         let wallets = walletsHash[priority];
         let total = wallets.reduce((sum, e) => sum + e.amount, 0);
         let portionTotal = wallets.reduce((sum, e) => sum + e.portion, 0);
+        if (portionTotal === 0) continue;
 
         let forLevel = Math.min(Math.abs(diff), total);
         diff += forLevel;
 
+        if (DEBUG) this.tlog(`In negative diff`);
+
         for (let wallet of wallets) {
+          if (wallet.portion === 0) continue;
           let portionAmount = forLevel * (wallet.portion / portionTotal);
           wallet.amount = Math.max(wallet.amount - Math.ceil(portionAmount), 0);
         }
@@ -384,15 +394,10 @@ export class BankScript extends BaseScript {
       maxMoney: 0,
     };
 
-    this.addWallet({name: "gang", portion: 0.01});
+    this.addWallet({name: "gang", portion: 0});
     this.addWallet({name: "servers", portion: 0.9, priority: 4});
-    this.addWallet({
-      name: "stocks",
-      portion: 0.01,
-      minMaxMoney: convertStrToMoney("10b"),
-    });
-    // this.addWallet({name: "rest", portion: 0.09, priority: 100});
-
+    this.addWallet({name: "stocks", portion: 0});
+    this.addWallet({name: "hacknet", portion: 0});
     this.saveState();
   }
 

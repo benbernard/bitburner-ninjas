@@ -1,5 +1,6 @@
 import {BaseScript} from "./baseScript.js";
 import {_} from "./utils.js";
+import {BankMessaging} from "./messaging.js";
 
 const UPGRADE_ACTIONS = {
   LEVEL: (i, ns) => {
@@ -33,24 +34,39 @@ const UPGRADE_COSTS = {
 
 class ThisScript extends BaseScript {
   async perform() {
+    this.bank = new BankMessaging(this.ns);
     this.tlog(this.reserveHashes());
     while (true) {
       this.createMoney();
-      this.upgradeServers();
-      await this.sleep(1000);
+      await this.sleep(500);
+
+      let wallet = await this.bank.walletInfo("hacknet");
+      let usableMoney = wallet.amount;
+
+      await this.upgradeServers(usableMoney);
+      await this.sleep(5000);
     }
   }
 
-  upgradeServers() {
-    this.ns.hacknet.purchaseNode();
+  async upgradeServers(money) {
+    let originalMoney = money;
+
+    while (money > this.ns.hacknet.getPurchaseNodeCost()) {
+      money -= this.ns.hacknet.getPurchaseNodeCost();
+      this.ns.hacknet.purchaseNode();
+    }
+
     while (true) {
       let [cost, action, server] = this.cheapestUpgrade();
-      if (cost < this.ns.getServerMoneyAvailable("home")) {
+      if (cost < money) {
         UPGRADE_ACTIONS[action](server, this.ns);
+        money -= cost;
       } else {
-        return;
+        break;
       }
     }
+
+    await this.bank.withdraw("hacknet", originalMoney - money);
   }
 
   cheapestUpgrade() {

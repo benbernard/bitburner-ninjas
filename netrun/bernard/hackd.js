@@ -111,7 +111,7 @@ class ThisScript extends BaseScript {
     if (req.type === Request.HACK) {
       action = this.ns.hack(req.target, {threads: req.threads});
     } else if (req.type === Request.GROW) {
-      action = this.ns.grow(req.target, {threads: req.threads});
+      action = this.ns.grow(req.target, {threads: req.threads, stock: true});
     } else if (req.type === Request.WEAKEN) {
       action = this.ns.weaken(req.target, {threads: req.threads});
     } else {

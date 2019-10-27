@@ -30,20 +30,20 @@ class ThisScript extends TK.Script {
     let availableMoney = wallet.amount;
 
     for (let stock of this.candidateStocks()) {
-      this.log(`Considering ${stock.symbol}`);
       let [cost, canBuyMore] = await this.stockBuy(stock, availableMoney);
       availableMoney -= cost;
       if (availableMoney < this.bank * 0.1) break;
     }
-
-    this.log(`Remaining money: ${this.cFormat(availableMoney)}`);
   }
 
   async sellLosers() {
     let sold = false;
     let sells = {};
+
+    let hasSells = false;
     for (let position of this.heldPositions()) {
       if (position.forecast() < SELL_FORECAST) {
+        hasSells = true;
         this.log(
           `Selling ${position.stock.symbold}:${
             position.shares
@@ -54,7 +54,7 @@ class ThisScript extends TK.Script {
       }
     }
 
-    await this.bank.sellStocks(sells);
+    if (hasSells) await this.bank.sellStocks(sells);
     this.updateAllPositions();
     return sold;
   }
