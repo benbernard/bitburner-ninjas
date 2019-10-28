@@ -38,7 +38,7 @@ class ThisScript extends TK.Script {
 
   async recruitNewMembers() {
     this.log(`Starting Gang management loop`);
-    if (this.gang.canRecruit()) {
+    while (this.gang.canRecruit()) {
       this.log(`Recruiting new members`);
       let member = this.gang.recruit();
       member.setTask(TASKS.TRAIN_COMBAT);
@@ -67,7 +67,14 @@ class ThisScript extends TK.Script {
       // let ascensionsNeeded = member.ascensionsNeeded();
       // if (ascensionsNeeded * ascensionCost >= amount) continue;
 
+      let count = 0;
       while (!member.fullyAscended()) {
+        count++;
+        if (count > 10) {
+          count = 0;
+          await this.sleep(100);
+        }
+
         if (ascensionCost < amount) {
           this.tlog(`Ascending ${member.name}`);
           member.ascend();
@@ -79,6 +86,8 @@ class ThisScript extends TK.Script {
         }
       }
     }
+
+    await this.bank.withdraw("gang", wallet.amount - amount);
   }
 
   fullyOwnsEquipment(member) {
@@ -99,6 +108,8 @@ class ThisScript extends TK.Script {
       let cost = await this.buyEquipmentForMember(member, availableAmount);
       availableAmount -= cost;
     }
+
+    await this.bank.withdraw("gang", wallet.amount - availableAmount);
   }
 
   async buyEquipmentForMember(member, availableAmount) {
@@ -113,7 +124,7 @@ class ThisScript extends TK.Script {
         );
         availableAmount -= equipment.cost;
         cost += equipment.cost;
-        await this.bank.buyEquipment(member.name, equipment.name);
+        this.ns.gang.purchaseEquipment(member.name, equipment.name);
       }
     }
 

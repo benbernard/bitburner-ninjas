@@ -7,6 +7,11 @@ const map = {
   wanted: TASKS.VIGILANTE_JUSTICE,
   vigilante: TASKS.VIGILANTE_JUSTICE,
   mug: TASKS.MUG,
+  arms: TASKS.ARMS,
+  traffick: TASKS.TRAFFICK,
+  human: TASKS.TRAFFICK,
+  terror: TASKS.TERROR,
+  terrorism: TASKS.TERROR,
 };
 
 class ThisScript extends TK.Script {

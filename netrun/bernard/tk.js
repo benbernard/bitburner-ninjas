@@ -160,6 +160,10 @@ export class Server extends NSObject {
     return this.security() < this.minSecurity() + 3;
   }
 
+  hasLowMoney() {
+    return this.money() < this.maxMoney() * 0.95;
+  }
+
   threadsForMinWeaken({extraHack = 0, extraGrow = 0} = {}) {
     let min = this.minSecurity();
     let current = this.security();

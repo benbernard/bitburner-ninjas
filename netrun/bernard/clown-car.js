@@ -39,17 +39,18 @@ class ThisScript extends TK.Script {
     this.prepAttacks = new Set();
     this.preppingServers = new Set();
     this.attacks = new Set();
+    this.targetUpdateTime = 0;
 
     this.chances = {
-      [Request.HACK]: 0.33,
-      [Request.GROW]: 0.33,
-      [Request.WEAKEN]: 0.34,
+      [Request.HACK]: 0.05,
+      [Request.GROW]: 0.475,
+      [Request.WEAKEN]: 0.475,
     };
   }
 
   pickOne() {
     let sum = _.values(this.chances).reduce((sum, e) => sum + e, 0);
-    if (sum !== 1) throw new Error(`Sum must = 1, got ${sum}`);
+    if (sum > 1.001 || sum < 0.98) throw new Error(`Sum must = 1, got ${sum}`);
 
     let total = 0;
     let die = Math.random();
@@ -57,6 +58,9 @@ class ThisScript extends TK.Script {
       total += value;
       if (die <= total) return key;
     }
+
+    this.tlog(`Failed to pick a sum, returning weaken!`);
+    return Request.WEAKEN;
   }
 
   async allServers() {
@@ -79,11 +83,39 @@ class ThisScript extends TK.Script {
     return Date.now();
   }
 
+  updateChances(now) {
+    if (!this.target) return;
+    if (this.updateChancesTime > now) return;
+
+    let action = Request.HACK;
+    if (!this.target.hasLowSecurity()) {
+      action = Request.WEAKEN;
+    } else if (this.target.hasLowMoney()) {
+      action = Request.GROW;
+    }
+
+    let alpha = 0.001;
+    let newValue = alpha * 1 + (1 - alpha) * this.chances[action];
+    let change = this.chances[action] - newValue;
+
+    for (let [key, value] of _.hashEach(this.chances)) {
+      if (key === action) {
+        this.chances[key] = newValue;
+      } else {
+        this.chances[key] += change / 2;
+      }
+    }
+
+    this.updateChancesTime = now + 1000;
+  }
+
   updateStatus() {
     let info = {
       maxThreads: this.queue.maxThreads,
       availableThreads: this.queue.availableThreads,
       threadManager: this.threadManager.availableThreads(),
+      target: this.target ? this.target.name : "not picked",
+      chances: this.chances,
       prepAttackInfos: _.toArray(this.prepAttacks).map(a => a.infos()),
       attacks: _.toArray(this.attacks).map(a => a.info()),
     };
@@ -97,7 +129,8 @@ class ThisScript extends TK.Script {
     return servers
       .filter(s => s.maxMoney() > 0)
       .filter(s => s.hackingLevel() <= hackingLevel)
-      .sort((a, b) => b.maxMoney() - a.maxMoney());
+      .sort(byMoneyPerTime);
+    // .sort((a, b) => b.maxMoney() - a.maxMoney());
   }
 
   async determineTarget(now) {
@@ -108,21 +141,33 @@ class ThisScript extends TK.Script {
     let servers = await this.serversToAttack();
 
     servers = servers.filter(s => this.readyToAttack(s));
+    if (servers.length === 0) return;
     let newTarget = servers[0];
+    if (this.overrideTarget != null) {
+      newTarget = this.overrideTarget;
+    }
+
+    let targetMoneyPerTime = moneyPerTime(newTarget);
 
     if (
       !this.target ||
       (this.target.name !== newTarget.name &&
-        newTarget.maxMoney() > this.targetMaxMoney)
+        targetMoneyPerTime > this.targetMoneyPerTime &&
+        this.targetUpdateTime < now)
     ) {
+      this.tlog(`Selected target: ${newTarget.name}`);
+
       this.target = newTarget;
       this.targetHacks = 0;
-      this.targetMaxMoney = newTarget.maxMoney();
+      this.targetMoneyPerTime = targetMoneyPerTime;
+      // this.targetMaxMoney = newTarget.maxMoney();
       this.targetTimings = this.target.attackTimings();
 
       let longestTime = Math.max(...Object.values(this.targetTimings));
       this.targetSaturatedTime = now + longestTime * 2;
       this.targetMinDelay = now + longestTime;
+      this.updateChancesTime = this.targetSaturatedTime;
+      this.targetUpdateTime = this.targetSaturatedTime;
     }
 
     return this.target;
@@ -157,6 +202,11 @@ class ThisScript extends TK.Script {
 
   async perform() {
     await this.fillWorkers({wait: true});
+    let targetName = this.pullFirstArg();
+    if (targetName) {
+      this.overrideTarget = this.server(targetName);
+    }
+
     this.addFinally(() => this.procs.forEach(p => p.kill()));
 
     let count = 0;
@@ -185,6 +235,7 @@ class ThisScript extends TK.Script {
       this.createAttacks(now);
 
       if (periodic) this.updateStatus();
+      this.updateChances(now);
 
       await this.delay(sleepMs);
       count++;
@@ -203,10 +254,11 @@ class ThisScript extends TK.Script {
   }
 
   createAttacks(now) {
+    if (!this.target) return;
     if (this.threadManager.availableThreads() <= 10) return;
     if (!this.target.hasLowSecurity()) return;
 
-    let attackThreads = Math.ceil(this.queue.maxThreads / 4000);
+    let attackThreads = Math.ceil(this.queue.maxThreads / 2000);
     let weakenThreads = Math.ceil(attackThreads / 3);
 
     let saturated = true;
@@ -223,14 +275,14 @@ class ThisScript extends TK.Script {
       let type = this.pickOne();
       let threads = type === Request.WEAKEN ? weakenThreads : attackThreads;
 
-      let delayPeriod = 0;
+      let delayPeriod = 500;
       let minDelay = 0;
       if (!saturated) {
         minDelay = Math.max(
           this.targetMinDelay - this.targetTimings[type] - now,
           0
         );
-        delayPeriod = Math.max(this.targetSaturatedTime - now - minDelay, 0);
+        delayPeriod = Math.max(this.targetSaturatedTime - now - minDelay, 500);
       }
 
       let startTime = now + minDelay + Math.random() * delayPeriod;
@@ -296,11 +348,21 @@ class ThisScript extends TK.Script {
       if (this.preppingServers.has(target.name)) continue;
       if (this.readyToAttack(target)) continue;
 
+      let prepThreads = _.toArray(this.prepAttacks).reduce(
+        (sum, a) => sum + a.threads,
+        0
+      );
+      let maxPrepThreads = this.threadManager.maxThreads() * 0.25;
+      let maxCurrentPrepThreads = maxPrepThreads - prepThreads;
+
+      if (maxCurrentPrepThreads <= 10) return;
+
       let attack = new PodAttack(this.ns, {
         queue: this.queue,
         startTime: now,
         server: target,
         threadManager: this.threadManager,
+        maxThreadLimit: maxCurrentPrepThreads,
         firstRun: true,
         canAttackHighSec: true,
       });
@@ -498,6 +560,7 @@ class PodAttack extends NSObject {
       priority = null,
       server,
       threadManager,
+      maxThreadLimit = 1,
       queue,
       firstRun = false,
       canAttackHighSec = false,
@@ -516,6 +579,7 @@ class PodAttack extends NSObject {
     }
 
     this.server = server;
+    this.maxThreadLimit = maxThreadLimit;
     this.canAttackHighSec = canAttackHighSec;
     this.originalStartTime = startTime;
     this.priority = priority;
@@ -567,11 +631,9 @@ class PodAttack extends NSObject {
       (attackThreads * securityCostPerThread) / WEAKEN_SECURITY_HEAL
     );
 
-    let maxThreads = this.threadManager.availableThreads();
+    let maxThreads = this.availableThreads();
     if (maxThreads < attackThreads + weakenThreads) {
-      // First assign weaken threads for min weaken
-      weakenThreads = this.server.threadsForMinWeaken();
-      maxThreads -= weakenThreads;
+      weakenThreads = 0;
 
       let weakenThreadsPerAttack = securityCostPerThread / WEAKEN_SECURITY_HEAL;
       // Attack as much as possible while still weakening
@@ -585,6 +647,13 @@ class PodAttack extends NSObject {
     if (weakenThreads <= 0 && desiredThreads > 0) {
       throw new Error(
         `Computed 0 or less weaken threads for attack? ${weakenThreads}, D:${desiredThreads}, available: ${this.threadManager.availableThreads()}`
+      );
+    }
+
+    if (attackThreads + weakenThreads > this.availableThreads()) {
+      throw new Error(
+        `Computed too many attack/weaken threads: ${attackThreads +
+          weakenThreads} have: ${this.threadManager.availableThreads()}`
       );
     }
 
@@ -688,14 +757,15 @@ class PodAttack extends NSObject {
     return fullRun;
   }
 
+  availableThreads() {
+    return Math.min(this.threadManager.availableThreads(), this.maxThreadLimit);
+  }
+
   setupOnlyWeaken() {
     if (this.server.hasLowSecurity()) return true;
 
     let desiredThreads = this.server.threadsForMinWeaken();
-    let threads = Math.min(
-      desiredThreads,
-      this.threadManager.availableThreads()
-    );
+    let threads = Math.min(desiredThreads, this.availableThreads());
 
     this.delayedAttacks.push(
       new DelayedAttack(this.ns, {
@@ -828,6 +898,10 @@ class ThreadManager extends NSObject {
 
   availableThreads() {
     return this.queue.maxThreads - this.allocatedThreads;
+  }
+
+  maxThreads() {
+    return this.queue.maxThreads;
   }
 
   canAllocate(pod) {

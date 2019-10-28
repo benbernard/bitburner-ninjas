@@ -66,7 +66,7 @@ export class BankScript extends BaseScript {
       }
 
       this.saveState();
-      await this.ns.sleep(100);
+      await this.ns.sleep(500);
     }
   }
 

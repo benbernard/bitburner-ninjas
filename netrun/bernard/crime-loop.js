@@ -72,9 +72,9 @@ class ThisScript extends BaseScript {
   async upgradeHomeRam() {
     let homeRam = () => this.ns.getServerRam("home")[0];
     if (homeRam() < 1024) {
-      let cost = this.ns.getUpgradeHomeRamCost();
       while (
-        this.ns.getServerMoneyAvailable("home") > cost &&
+        this.ns.getServerMoneyAvailable("home") >
+          this.ns.getUpgradeHomeRamCost() &&
         homeRam() < 1024
       ) {
         this.tlog(`Upgrading home ram`);

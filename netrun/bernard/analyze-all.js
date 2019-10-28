@@ -14,6 +14,8 @@ class ThisScript extends TK.Script {
       await this.sortedInfo(seen);
     } else if (mode === "search") {
       await this.serverSearch(this.args[0], seen);
+    } else if (mode === "rooted") {
+      await this.rooted(seen);
     } else {
       await this.exit(`Mode not recognized: ${mode}`);
     }
@@ -36,6 +38,12 @@ class ThisScript extends TK.Script {
     } else {
       this.tlog(`No matching servers for ${term}`);
     }
+  }
+
+  async rooted(seen) {
+    let servers = await this.s.reachableServers(seen);
+
+    servers.filter(s => s.hasRoot()).forEach(s => this.tlog(s.info()));
   }
 
   async sortedInfo(seen) {

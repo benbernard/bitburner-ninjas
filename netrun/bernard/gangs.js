@@ -12,7 +12,12 @@ export const TASKS = {
   TERRITORY_WARFARE: "Territory Warfare",
   VIGILANTE_JUSTICE: "Vigilante Justice",
   MUG: "Mug People",
+  TERROR: "Terrorism",
+  TRAFFICK: "Human Trafficking",
+  ARMS: "Traffick Illegal Arms",
 };
+
+const ASCENDED_STRENGTH_MULT = 100;
 
 export class Gang extends GangNSObject {
   constructor(ns, es) {
@@ -106,11 +111,11 @@ export class Member extends GangNSObject {
   }
 
   fullyAscended() {
-    return this.info.strengthAscensionMult >= 5;
+    return this.info.strengthAscensionMult >= ASCENDED_STRENGTH_MULT;
   }
 
   ascensionsNeeded() {
-    let multNeeded = 5 - this.info.strengthAscensionMult;
+    let multNeeded = ASCENDED_STRENGTH_MULT - this.info.strengthAscensionMult;
     return Math.ceil(multNeeded / 0.37);
   }
 

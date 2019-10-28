@@ -4,8 +4,8 @@ import {BaseScript} from "./baseScript.js";
 const MAX_MONEY_FILE = "max-money-seen.txt";
 const DYING_FILE = "dying.txt";
 
-// let targetTiers = [128, 1024, 16384, 262144, 1048576];
-let targetTiers = [128, 1024, 16384, 262144, 524288];
+let targetTiers = [128, 1024, 16384, 262144, 1048576];
+// let targetTiers = [128, 1024, 16384, 262144, 524288];
 
 class ThisScript extends BaseScript {
   async perform() {
