@@ -42,9 +42,9 @@ class ThisScript extends TK.Script {
     this.targetUpdateTime = 0;
 
     this.chances = {
-      [Request.HACK]: 0.05,
-      [Request.GROW]: 0.475,
-      [Request.WEAKEN]: 0.475,
+      [Request.HACK]: 0.17,
+      [Request.GROW]: 0.38,
+      [Request.WEAKEN]: 0.45,
     };
   }
 
@@ -343,7 +343,10 @@ class ThisScript extends TK.Script {
   }
 
   async createPrepAttacks(now) {
-    for (let target of await this.serversToAttack()) {
+    let servers = await this.serversToAttack();
+    let anyReady = servers.some(s => this.readyToAttack(s));
+
+    for (let target of servers) {
       if (this.threadManager.availableThreads() < 10) return;
       if (this.preppingServers.has(target.name)) continue;
       if (this.readyToAttack(target)) continue;
@@ -352,7 +355,8 @@ class ThisScript extends TK.Script {
         (sum, a) => sum + a.threads,
         0
       );
-      let maxPrepThreads = this.threadManager.maxThreads() * 0.25;
+      let maxPrepThreads = Math.floor(this.threadManager.maxThreads() * 0.25);
+      if (!anyReady) maxPrepThreads = this.threadManager.maxThreads();
       let maxCurrentPrepThreads = maxPrepThreads - prepThreads;
 
       if (maxCurrentPrepThreads <= 10) return;
@@ -573,7 +577,7 @@ class PodAttack extends NSObject {
     this.parent = parent;
 
     if (this.parent) {
-      this.startTime = this.parent.startTime + 2000;
+      this.startTime = this.parent.startTime + 5000;
     } else {
       this.startTime = startTime;
     }
@@ -651,10 +655,18 @@ class PodAttack extends NSObject {
     }
 
     if (attackThreads + weakenThreads > this.availableThreads()) {
-      throw new Error(
-        `Computed too many attack/weaken threads: ${attackThreads +
-          weakenThreads} have: ${this.threadManager.availableThreads()}`
-      );
+      if (attackThreads + weakenThreads - this.availableThreads() <= 1) {
+        if (attackThreads > 1) {
+          attackThreads -= 1;
+        } else {
+          weakenThreads -= 1;
+        }
+      } else {
+        throw new Error(
+          `Computed too many attack/weaken threads: ${attackThreads +
+            weakenThreads} have: ${this.availableThreads()}`
+        );
+      }
     }
 
     return {
@@ -837,7 +849,7 @@ class PodAttack extends NSObject {
   }
 
   startWeakenGrowTime() {
-    return this.startTime + 1000;
+    return this.startTime + 4000;
   }
 
   startWeakenHackTime() {
@@ -853,7 +865,7 @@ class PodAttack extends NSObject {
   }
 
   startHackTime() {
-    return this.endWeakenHackTime() - this.hackTime - 500;
+    return this.endWeakenHackTime() - this.hackTime - 2000;
   }
 
   endHackTime() {
@@ -861,7 +873,7 @@ class PodAttack extends NSObject {
   }
 
   startGrowTime() {
-    return this.endWeakenGrowTime() - this.growTime - 500;
+    return this.endWeakenGrowTime() - this.growTime - 2000;
   }
 
   endGrowTime() {

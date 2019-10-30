@@ -17,7 +17,9 @@ export const TASKS = {
   ARMS: "Traffick Illegal Arms",
 };
 
-const ASCENDED_STRENGTH_MULT = 100;
+const ASCENDED_STRENGTH_MULT = 48;
+const ASCENDED_STR = 4000;
+// const ASCENDED_STRENGTH_MULT = 20;
 
 export class Gang extends GangNSObject {
   constructor(ns, es) {
@@ -111,7 +113,10 @@ export class Member extends GangNSObject {
   }
 
   fullyAscended() {
-    return this.info.strengthAscensionMult >= ASCENDED_STRENGTH_MULT;
+    return (
+      this.info.strengthAscensionMult >= ASCENDED_STRENGTH_MULT ||
+      this.info.strength >= ASCENDED_STR
+    );
   }
 
   ascensionsNeeded() {

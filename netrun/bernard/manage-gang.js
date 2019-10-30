@@ -2,7 +2,7 @@ import * as TK from "./tk.js";
 import {EquipmentSet, Gang, TASKS} from "./gangs.js";
 import {BankMessaging} from "./messaging.js";
 
-let EXCLUDED_NAMES = ["Madeline"];
+let EXCLUDED_NAMES = ["Member-nph4w2vrs4afberagod6t"];
 
 class ThisScript extends TK.Script {
   async perform() {
@@ -16,7 +16,7 @@ class ThisScript extends TK.Script {
       await this.recruitNewMembers();
       await this.buyEquipment();
       await this.ascendMembers();
-      await this.setTasks();
+      // await this.setTasks();
 
       await this.sleep(5000);
     }

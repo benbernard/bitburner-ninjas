@@ -143,6 +143,10 @@ export class BankMessaging extends Messaging {
     return this.sendAndWait({type: BankMessaging.CLEAR});
   }
 
+  balanceAccounts() {
+    return this.sendAndWait({type: BankMessaging.BALANCE_ACCOUNTS});
+  }
+
   withdraw(wallet, amount) {
     return this.sendAndWait({
       type: BankMessaging.WITHDRAW,
@@ -163,3 +167,4 @@ BankMessaging.CLEAR = "clear";
 BankMessaging.STOCK_BUY = "stock_buy";
 BankMessaging.SELL_STOCKS = "sell_stocks";
 BankMessaging.WITHDRAW = "withdraw";
+BankMessaging.BALANCE_ACCOUNTS = "balance_accounts";

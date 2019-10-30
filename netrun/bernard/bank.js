@@ -97,6 +97,8 @@ export class BankScript extends BaseScript {
     } else if (type === BankMessaging.CLEAR) {
       this.initializeState();
       return this.messaging.sendResponse(req, {success: true});
+    } else if (type === BankMessaging.BALANCE_ACCOUNTS) {
+      this.balanceAccounts(req);
     } else {
       this.tlog(`Bank received unknown message type: ${type}`);
     }
@@ -210,6 +212,16 @@ export class BankScript extends BaseScript {
 
     this.saveState();
     return this.messaging.sendResponse(req, {success});
+  }
+
+  balanceAccounts(req) {
+    for (let wallet of this.wallets) {
+      wallet.amount = 0;
+    }
+    this.state.allocatedMoney = 0;
+    this.saveState();
+    this.update();
+    return this.messaging.sendResponse(req, {success: true});
   }
 
   deposit(req) {
@@ -349,7 +361,7 @@ export class BankScript extends BaseScript {
   setup() {
     this.disableLogging("sleep", "getServerMoneyAvailable", "getHackingLevel");
 
-    if (this.ns.fileExists(BANK_INFO_FILE, "home")) {
+    if (this.ns.fileExists(BANK_INFO_FILE)) {
       let contents = this.ns.read(BANK_INFO_FILE);
       this.state = JSON.parse(contents);
     }

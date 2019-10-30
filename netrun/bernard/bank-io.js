@@ -35,6 +35,10 @@ class ThisScript extends BaseScript {
       await this.printAllWallets();
     } else if (action === "all" || action === "infos") {
       await this.printAllWallets();
+    } else if (action === "balance") {
+      let response = await bank.balanceAccounts();
+      this.tlog(`Balance response: ${JSON.stringify(response)}`);
+      await this.printAllWallets();
     } else if (action === "clear" || action === "infos") {
       let response = await bank.clear();
       this.tlog(`Clear response: ${JSON.stringify(response)}`);
