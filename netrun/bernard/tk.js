@@ -5,6 +5,7 @@ import {_, copy} from "./utils.js";
 const DYING_FILE = "dying.txt";
 
 const LIBRARY_FILES = ["baseScript.js", "tk.js"];
+const USE_FOR_HACKING_FILE = "use_for_hacking.txt";
 
 export class Server extends NSObject {
   constructor(ns, name, parent) {
@@ -16,9 +17,16 @@ export class Server extends NSObject {
   }
 
   isHacknet() {
-    return this.name.startsWith("hacknet");
-    // this.name !== "hacknet-node-0" &&
-    // this.name !== "hacknet-node-1"
+    // return this.name.startsWith("hacknet");
+    return (
+      this.name.startsWith("hacknet") && !this.fileExists(USE_FOR_HACKING_FILE)
+    );
+  }
+
+  setUseForHacking() {
+    this.ns.write(USE_FOR_HACKING_FILE, "not important", "w");
+    this.ns.scp([USE_FOR_HACKING_FILE], "home", this.name);
+    this.ns.rm(USE_FOR_HACKING_FILE, "home");
   }
 
   attackTimings() {
@@ -469,9 +477,9 @@ export class Server extends NSObject {
 
     let available = this.availableRam();
     let commandRam = this.scriptRam(script);
+    if (available < commandRam) return 0;
 
     let threads = Math.floor(available / commandRam);
-
     return threads;
   }
 }

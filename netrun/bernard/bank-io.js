@@ -19,6 +19,7 @@ class ThisScript extends BaseScript {
       this.tlog(`Depositing Amount: ${this.cFormat(amount)} to: ${wallet}`);
       let response = await bank.deposit(wallet, amount);
       this.tlog(`Deposit Response: ${JSON.stringify(response)}`);
+      await this.printAllWallets();
     } else if (action === "set") {
       let sets = [];
       for (let arg of this.args) {

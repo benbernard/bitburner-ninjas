@@ -34,6 +34,7 @@ const UPGRADE_COSTS = {
 
 class ThisScript extends BaseScript {
   async perform() {
+    let suppressUpgrades = this.pullFirstArg() === "true";
     this.bank = new BankMessaging(this.ns);
     this.tlog(this.reserveHashes());
     while (true) {
@@ -43,7 +44,7 @@ class ThisScript extends BaseScript {
       let wallet = await this.bank.walletInfo("hacknet");
       let usableMoney = wallet.amount;
 
-      await this.upgradeServers(usableMoney);
+      if (!suppressUpgrades) await this.upgradeServers(usableMoney);
       await this.sleep(5000);
     }
   }
@@ -75,7 +76,9 @@ class ThisScript extends BaseScript {
     let server;
     let action;
 
+    // Note: excluding hacknet-node-0 from this
     for (let i = 0; i < serverCount; i++) {
+      // for (let i = 3; i < serverCount; i++) {
       let [cost, key] = this.minActionForServer(i);
 
       if (cost < min) {
@@ -104,12 +107,15 @@ class ThisScript extends BaseScript {
 
   createMoney() {
     while (this.ns.hacknet.numHashes() > this.reserveHashes()) {
+      // this.ns.hacknet.spendHashes("Increase Maximum Money", "megacorp");
+      // this.ns.hacknet.spendHashes("Reduce Minimum Security", "megacorp");
+      // break;
       this.ns.hacknet.spendHashes("Sell for Money");
     }
   }
 
   reserveHashes() {
-    return 0.9 * this.totalCache();
+    return 0.2 * this.totalCache();
   }
 
   totalCache() {

@@ -31,7 +31,7 @@ class ThisScript extends BaseScript {
     while (true) {
       await this.checkStop();
       await this.upgradeHomeRam();
-      await this.buyPrograms();
+      // await this.buyPrograms();
 
       let result = await this.ns.commitCrime(crime);
       while (this.ns.isBusy() && !this.stopped) {
@@ -47,27 +47,27 @@ class ThisScript extends BaseScript {
     await this.exit(`Stopped Actions by Server`);
   }
 
-  buyPrograms() {
-    this.ns.purchaseTor();
-    for (let program of programs) {
-      this.buyProgram(program);
-    }
-  }
+  // buyPrograms() {
+  //   this.ns.purchaseTor();
+  //   for (let program of programs) {
+  //     this.buyProgram(program);
+  //   }
+  // }
 
-  allProgramsBought({log = true} = {}) {
-    for (let program of programs) {
-      if (!this.ns.fileExists(program, "home")) return false;
-    }
+  // allProgramsBought({log = true} = {}) {
+  //   for (let program of programs) {
+  //     if (!this.ns.fileExists(program, "home")) return false;
+  //   }
+  //
+  //   if (log) this.tlog("Bought all nuke porgrams!");
+  //   return true;
+  // }
 
-    if (log) this.tlog("Bought all nuke porgrams!");
-    return true;
-  }
-
-  buyProgram(program) {
-    if (this.ns.fileExists(program, "home")) return;
-    let success = this.ns.purchaseProgram(program);
-    if (success) this.tlog(`Bought ${program}`);
-  }
+  // buyProgram(program) {
+  //   if (this.ns.fileExists(program, "home")) return;
+  //   let success = this.ns.purchaseProgram(program);
+  //   if (success) this.tlog(`Bought ${program}`);
+  // }
 
   async upgradeHomeRam() {
     let homeRam = () => this.ns.getServerRam("home")[0];

@@ -42,6 +42,12 @@ export class Sleeve extends NSObject {
         "Rothman University",
         "Algorithms"
       );
+    } else if (stat === "charisma") {
+      this.s.setToUniversityCourse(
+        this.num,
+        "Rothman University",
+        "Leadership"
+      );
     } else {
       this.s.setToGymWorkout(this.num, GYM_NAME, stat);
     }

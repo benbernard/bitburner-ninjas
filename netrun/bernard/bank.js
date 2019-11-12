@@ -228,11 +228,20 @@ export class BankScript extends BaseScript {
     let wallet = this.wallet(req.data.wallet);
     let amount = req.data.amount;
 
-    if (amount > this.unallocatedMoney()) {
+    if (wallet.amount + amount > this.actualMoney()) {
       this.messaging.sendResponse(req, {success: false});
     }
 
     wallet.amount += amount;
+
+    if (this.walletTotal() > this.state.allocatedMoney) {
+      let diff = this.state.allocatedMoney - this.walletTotal();
+      let otherWallets = this.wallets.filter(w => w !== wallet);
+
+      this.updateWalletsForDiff(diff, otherWallets);
+      this.state.allocatedMoney -= diff;
+    }
+
     this.saveState();
 
     return this.messaging.sendResponse(req, {success: true});
@@ -265,22 +274,8 @@ export class BankScript extends BaseScript {
     return true;
   }
 
-  update() {
-    // Check for reset
-    let currentHackingLevel = this.actualHackingLevel();
-    if (this.state.hackingLevel > currentHackingLevel) {
-      this.tlog(`Detected reset/prestige, resetting bank`);
-      this.initializeState();
-    }
-    this.state.hackingLevel = currentHackingLevel;
-
-    let currentMoney = this.actualMoney();
-
-    // Allocate diff
-    let diff = currentMoney - this.state.allocatedMoney;
-    this.debugLog(`Allocating ${diff} to wallets`);
-
-    let walletsHash = this.walletsByPriority();
+  updateWalletsForDiff(diff, wallets) {
+    let walletsHash = this.walletsByPriority(wallets);
 
     if (diff > 0) {
       let leftDiff = diff;
@@ -340,6 +335,24 @@ export class BankScript extends BaseScript {
         if (diff >= 0) break;
       }
     }
+  }
+
+  update() {
+    // Check for reset
+    let currentHackingLevel = this.actualHackingLevel();
+    if (this.state.hackingLevel > currentHackingLevel) {
+      this.tlog(`Detected reset/prestige, resetting bank`);
+      this.initializeState();
+    }
+    this.state.hackingLevel = currentHackingLevel;
+
+    let currentMoney = this.actualMoney();
+
+    // Allocate diff
+    let diff = currentMoney - this.state.allocatedMoney;
+    this.debugLog(`Allocating ${diff} to wallets`);
+
+    this.updateWalletsForDiff(diff);
 
     this.state.allocatedMoney = currentMoney;
     this.state.maxMoney = Math.max(currentMoney, this.state.maxMoney);
@@ -381,9 +394,9 @@ export class BankScript extends BaseScript {
     return this.ns.getHackingLevel();
   }
 
-  walletsByPriority() {
+  walletsByPriority(wallets = this.wallets) {
     let hash = {};
-    for (let wallet of this.wallets) {
+    for (let wallet of wallets) {
       if (!(wallet.priority in hash)) {
         hash[wallet.priority] = [];
       }
@@ -407,9 +420,9 @@ export class BankScript extends BaseScript {
     };
 
     this.addWallet({name: "gang", portion: 0});
-    this.addWallet({name: "servers", portion: 0.9, priority: 4});
+    this.addWallet({name: "servers", portion: 0, priority: 4});
     this.addWallet({name: "stocks", portion: 0});
-    this.addWallet({name: "hacknet", portion: 0});
+    this.addWallet({name: "hacknet", portion: 0.9, priority: 4});
     this.saveState();
   }
 

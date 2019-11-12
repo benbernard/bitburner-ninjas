@@ -70,7 +70,10 @@ class ThisScript extends TK.Script {
 
   async workers() {
     let servers = await this.allServers();
-    return servers.filter(s => !s.isDying()).filter(s => s.ram() > 0);
+    return servers
+      .filter(s => !s.isDying())
+      .filter(s => s.ram() > 0)
+      .filter(s => !s.isHacknet());
   }
 
   async nukeServers() {
@@ -129,6 +132,7 @@ class ThisScript extends TK.Script {
     return servers
       .filter(s => s.maxMoney() > 0)
       .filter(s => s.hackingLevel() <= hackingLevel)
+      .filter(s => !s.name.startsWith("hacknet-node-"))
       .sort(byMoneyPerTime);
     // .sort((a, b) => b.maxMoney() - a.maxMoney());
   }
@@ -344,6 +348,9 @@ class ThisScript extends TK.Script {
 
   async createPrepAttacks(now) {
     let servers = await this.serversToAttack();
+    if (this.overrideTarget) {
+      servers = [this.overrideTarget];
+    }
     let anyReady = servers.some(s => this.readyToAttack(s));
 
     for (let target of servers) {

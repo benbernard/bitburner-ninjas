@@ -2,7 +2,7 @@ import * as TK from "./tk.js";
 import {EquipmentSet, Gang, TASKS} from "./gangs.js";
 import {BankMessaging} from "./messaging.js";
 
-let EXCLUDED_NAMES = ["Member-nph4w2vrs4afberagod6t"];
+let EXCLUDED_NAMES = ["Member-947jeasgkoprjai5hjhhz8"];
 
 class ThisScript extends TK.Script {
   async perform() {
@@ -59,20 +59,35 @@ class ThisScript extends TK.Script {
     if (ascensionCost > amount) return;
 
     let members = this.gang.members();
+    let fullAscensionCostTold = false;
 
     for (let member of members) {
       if (!this.fullyOwnsEquipment(member)) continue;
       if (EXCLUDED_NAMES.indexOf(member.name) !== -1) continue;
+      if (member.fullyAscended()) continue;
 
-      // let ascensionsNeeded = member.ascensionsNeeded();
-      // if (ascensionsNeeded * ascensionCost >= amount) continue;
+      let ascensionsNeeded = member.ascensionsNeeded();
+      if (!fullAscensionCostTold) {
+        this.log(
+          `Full ascension for ${member.name} costs: ${this.cFormat(
+            ascensionsNeeded * ascensionCost
+          )}`
+        );
+        fullAscensionCostTold = true;
+      }
+
+      if (ascensionsNeeded * ascensionCost >= amount) continue;
 
       let count = 0;
       while (!member.fullyAscended()) {
         count++;
         if (count > 10) {
           count = 0;
+          await this.bank.withdraw("gang", wallet.amount - amount);
           await this.sleep(100);
+
+          wallet = await this.bank.walletInfo("gang");
+          amount = wallet.amount;
         }
 
         if (ascensionCost < amount) {
@@ -85,6 +100,8 @@ class ThisScript extends TK.Script {
           break;
         }
       }
+
+      break;
     }
 
     await this.bank.withdraw("gang", wallet.amount - amount);
@@ -125,6 +142,21 @@ class ThisScript extends TK.Script {
         availableAmount -= equipment.cost;
         cost += equipment.cost;
         this.ns.gang.purchaseEquipment(member.name, equipment.name);
+      }
+    }
+
+    if (member.greatlyAscended() && !member.hasAscendedAugments(this.es)) {
+      let ascendedEquipment = this.es.ascendedEquipment();
+      let ascendedCost = ascendedEquipment.reduce(
+        (sum, eq) => sum + eq.cost,
+        0
+      );
+      if (ascendedCost < availableAmount) {
+        for (let equipment of ascendedEquipment) {
+          availableAmount -= equipment.cost;
+          cost += equipment.cost;
+          this.ns.gang.purchaseEquipment(member.name, equipment.name);
+        }
       }
     }
 

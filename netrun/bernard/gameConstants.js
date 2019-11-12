@@ -1243,6 +1243,10 @@ export function canonicalStat(term) {
   return matcher(term, STATS);
 }
 
+export function canonicalSleeveCrime(term) {
+  return matcher(term, SLEEVE_CRIMES);
+}
+
 export const STATS = new Set([
   "strength",
   "dexterity",
@@ -1265,6 +1269,21 @@ export const CRIMES = new Set([
   "kidnap",
   "assassinate",
   "heist",
+]);
+
+export const SLEEVE_CRIMES = new Set([
+  "Shoplift",
+  "Rob Store",
+  "Mug",
+  "Larceny",
+  "Deal Drugs",
+  "Bond Forgery",
+  "Traffick Arms",
+  "Homicide",
+  "Grand Theft Auto",
+  "Kidnap",
+  "Assassinate",
+  "Heist",
 ]);
 
 export const CITIES = new Set([

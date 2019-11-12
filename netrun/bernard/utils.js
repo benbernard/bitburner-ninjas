@@ -1,8 +1,9 @@
 export function convertStrToMoney(str) {
-  if (typeof str === "number" || str.match(/^\d+$/)) return parseInt(str);
+  if (typeof str === "number" || str.match(/^[0-9]*\.?[0-9]*$/))
+    return parseFloat(str);
 
   let unit = str[str.length - 1];
-  let amount = parseInt(str.substring(0, str.length - 1));
+  let amount = parseFloat(str.substring(0, str.length - 1));
   if (!(unit in CONVERSIONS)) {
     throw new Error(
       `Cannot find unit ${unit} in ${JSON.stringify(Object.keys(CONVERSIONS))}`

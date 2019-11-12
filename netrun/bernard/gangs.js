@@ -1,4 +1,5 @@
 import {NSObject} from "./baseScript.js";
+import {json} from "./utils.js";
 
 class GangNSObject extends NSObject {
   get gang() {
@@ -17,8 +18,13 @@ export const TASKS = {
   ARMS: "Traffick Illegal Arms",
 };
 
-const ASCENDED_STRENGTH_MULT = 48;
-const ASCENDED_STR = 4000;
+const ALLOWED_EQUIPMENT = new Set(["Katana", "ATX1070 Superbike"]);
+
+const GREATLY_ASCENDED_STRENGTH_MULT = 40;
+const ASCENDED_STR = 2000;
+const ASCENDED_STRENGTH_MULT = 40;
+// const ASCENDED_STR = 4000;
+// const ASCENDED_STRENGTH_MULT = 10;
 // const ASCENDED_STRENGTH_MULT = 20;
 
 export class Gang extends GangNSObject {
@@ -105,11 +111,19 @@ export class Member extends GangNSObject {
   unownedEquipment(es) {
     if (!es) es = new EquipmentSet(this.ns);
 
+    let ownedEquipment = this.ownedEquipment();
+
+    return es
+      .sorted()
+      .filter(eq => !ownedEquipment.has(eq.name))
+      .filter(allowedEquipment);
+  }
+
+  ownedEquipment() {
     let ownedEquipment = new Set();
     this.info.equipment.forEach(name => ownedEquipment.add(name));
     this.info.augmentations.forEach(name => ownedEquipment.add(name));
-
-    return es.sorted().filter(equipment => !ownedEquipment.has(equipment.name));
+    return ownedEquipment;
   }
 
   fullyAscended() {
@@ -117,6 +131,18 @@ export class Member extends GangNSObject {
       this.info.strengthAscensionMult >= ASCENDED_STRENGTH_MULT ||
       this.info.strength >= ASCENDED_STR
     );
+  }
+
+  greatlyAscended() {
+    return this.info.strengthAscensionMult >= GREATLY_ASCENDED_STRENGTH_MULT;
+  }
+
+  hasAscendedAugments(es) {
+    let ownedEquipment = this.ownedEquipment();
+    for (let equipment of es.ascendedEquipment()) {
+      if (!ownedEquipment.has(equipment.name)) return false;
+    }
+    return true;
   }
 
   ascensionsNeeded() {
@@ -169,6 +195,16 @@ export class EquipmentSet extends NSObject {
     this.equipment = equipment;
   }
 
+  get(name) {
+    return this.equipment[name];
+  }
+
+  ascendedEquipment() {
+    return _.toArray(EquipmentSet.ASCENDED_AUGMENTS).map(name =>
+      this.get(name)
+    );
+  }
+
   infos() {
     return Object.values(this.equipment);
   }
@@ -191,9 +227,17 @@ export class EquipmentSet extends NSObject {
       if (eq.isHacking) return false;
       if (!includeAugments && eq.type === EquipmentSet.TYPES.AUGMENT)
         return false;
-      return true;
+      return allowedEquipment(eq);
     });
   }
+}
+
+function allowedEquipment(eq) {
+  // Disable this for now
+  if (true) return true;
+
+  if (ALLOWED_EQUIPMENT.has(eq.name)) return true;
+  return false;
 }
 
 EquipmentSet.HACKING_AUGMENTS = new Set([
@@ -201,6 +245,8 @@ EquipmentSet.HACKING_AUGMENTS = new Set([
   "Neuralstimulator",
   "DataJack",
 ]);
+
+EquipmentSet.ASCENDED_AUGMENTS = new Set(["Bionic Arms", "Bionic Spine"]);
 
 EquipmentSet.TYPES = {
   WEAPON: "Weapon",

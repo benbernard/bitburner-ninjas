@@ -17,12 +17,20 @@ class ThisScript extends TK.Script {
       this.crime("Homicide");
     } else if (mode === "hack") {
       this.hack();
+    } else if (mode === "chr") {
+      this.charisma();
     }
   }
 
   hack() {
     for (let sleeve of this.sleeves) {
       sleeve.train("hacking");
+    }
+  }
+
+  charisma() {
+    for (let sleeve of this.sleeves) {
+      sleeve.train("charisma");
     }
   }
 
@@ -34,16 +42,17 @@ class ThisScript extends TK.Script {
 
   async train(stats, target = 20) {
     for (let stat of stats) {
+      this.tlog(`Training ${stat}`);
       for (let sleeve of this.sleeves) {
         sleeve.train(stat);
       }
 
       while (true) {
+        await this.sleep(5000);
+
         if (this.sleeves.every(s => s.hasStatAt(stat, target))) {
           break;
         }
-
-        await this.sleep(5000);
       }
     }
   }

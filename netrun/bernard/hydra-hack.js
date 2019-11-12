@@ -61,7 +61,7 @@ class ThisScript extends TK.Script {
           await this.sleep(100);
         }
       } catch (e) {
-        this.tlog(`Error in hydra loop: ${e.message}, continuing`);
+        this.tlog(`Error in hydra loop: ${e.stack || e}, continuing`);
         await this.sleep(500);
       }
     }
@@ -446,9 +446,11 @@ class TargetAttack extends NSObject {
       if (!selected) break;
 
       let maxThreads = selected.computeMaxThreads(this.script);
-      if (maxThreads <= 0) break;
+      if (maxThreads <= 0 || isNaN(maxThreads)) break;
 
       let runThreads = Math.min(desiredThreads, maxThreads);
+      if (runThreads <= 0) break;
+
       await this.addRun(selected, runThreads);
       desiredThreads -= runThreads;
 
