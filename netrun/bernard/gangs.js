@@ -14,18 +14,36 @@ export const TASKS = {
   VIGILANTE_JUSTICE: "Vigilante Justice",
   MUG: "Mug People",
   TERROR: "Terrorism",
+  CYBER_TERROR: "Cyberterrorism",
   TRAFFICK: "Human Trafficking",
   ARMS: "Traffick Illegal Arms",
+  TRAIN_HACK: "Train Hacking",
+  RANSOM: "Ransomware",
+  MONEY: "Money Laundering",
 };
 
-const ALLOWED_EQUIPMENT = new Set(["Katana", "ATX1070 Superbike"]);
+const ALLOWED_EQUIPMENT = new Set([
+  "Katana",
+  "ATX1070 Superbike",
+  "Baseball Bat",
+]);
+
+const ALLOWED_HACKING_EQUIPMENT = new Set(["NUKE Rootkit"]);
+
+export const HACKING_GANG = true;
+// const ASCENDED_HACKING_MULT = 40;
+const ASCENDED_HACKING_MULT = 300;
+const ASCENDED_HACKING = 25000;
+const GREATLY_ASCENDED_HACKING_MULT = 120;
 
 const GREATLY_ASCENDED_STRENGTH_MULT = 40;
-const ASCENDED_STR = 2000;
-const ASCENDED_STRENGTH_MULT = 40;
+const ASCENDED_STR = 100000;
+const ASCENDED_STRENGTH_MULT = 70;
 // const ASCENDED_STR = 4000;
 // const ASCENDED_STRENGTH_MULT = 10;
 // const ASCENDED_STRENGTH_MULT = 20;
+
+const USE_LIMITED_EQUIPMENT = true;
 
 export class Gang extends GangNSObject {
   constructor(ns, es) {
@@ -69,30 +87,37 @@ export class Member extends GangNSObject {
   constructor(ns, name, info) {
     super(ns);
     this.name = name;
-    this.info = info;
-
-    if (!info) {
-      this.refreshInfo();
-    }
+    this._info = info;
   }
 
   trained() {
-    if (this.fullyAscended()) {
-      return this.info.defense >= 500 && this.info.strength >= 500;
+    if (HACKING_GANG) {
+      if (this.fullyAscended()) {
+        return this.info.hacking >= 700;
+      } else {
+        return this.info.hacking >= 120;
+      }
+    } else if (this.fullyAscended()) {
+      return this.info.defense >= 700 && this.info.strength >= 700;
     } else {
       return this.info.defense >= 120 && this.info.strength >= 120;
     }
   }
 
+  get info() {
+    if (this.needsRefresh || !this._info) this.refreshInfo();
+    this.needsRefresh = false;
+    return this._info;
+  }
+
   refreshInfo() {
-    this.info = this.gang.getMemberInformation(this.name);
-    return this.info;
+    this._info = this.gang.getMemberInformation(this.name);
+    return this._info;
   }
 
   ascend() {
     let ascensionData = this.gang.ascendMember(this.name);
-    this.refreshInfo();
-
+    this.needsRefresh = true;
     return ascensionData;
   }
 
@@ -116,7 +141,13 @@ export class Member extends GangNSObject {
     return es
       .sorted()
       .filter(eq => !ownedEquipment.has(eq.name))
-      .filter(allowedEquipment);
+      .filter(eq => {
+        if (this.fullyAscended()) {
+          return true;
+        } else {
+          return allowedEquipment(eq);
+        }
+      });
   }
 
   ownedEquipment() {
@@ -127,14 +158,25 @@ export class Member extends GangNSObject {
   }
 
   fullyAscended() {
-    return (
-      this.info.strengthAscensionMult >= ASCENDED_STRENGTH_MULT ||
-      this.info.strength >= ASCENDED_STR
-    );
+    if (HACKING_GANG) {
+      return (
+        this.info.hackingAscensionMult >= ASCENDED_HACKING_MULT ||
+        this.info.hacking >= ASCENDED_HACKING
+      );
+    } else {
+      return (
+        this.info.strengthAscensionMult >= ASCENDED_STRENGTH_MULT ||
+        this.info.strength >= ASCENDED_STR
+      );
+    }
   }
 
   greatlyAscended() {
-    return this.info.strengthAscensionMult >= GREATLY_ASCENDED_STRENGTH_MULT;
+    if (HACKING_GANG) {
+      return this.info.hackingAscensionMult >= GREATLY_ASCENDED_HACKING_MULT;
+    } else {
+      return this.info.strengthAscensionMult >= GREATLY_ASCENDED_STRENGTH_MULT;
+    }
   }
 
   hasAscendedAugments(es) {
@@ -145,14 +187,33 @@ export class Member extends GangNSObject {
     return true;
   }
 
+  unownedAscendedAugments(es) {
+    let ownedEquipment = this.ownedEquipment();
+
+    return es.ascendedEquipment().filter(eq => !ownedEquipment.has(eq.name));
+  }
+
   ascensionsNeeded() {
-    let multNeeded = ASCENDED_STRENGTH_MULT - this.info.strengthAscensionMult;
-    return Math.ceil(multNeeded / 0.37);
+    if (HACKING_GANG) {
+      let multNeeded = ASCENDED_HACKING_MULT - this.info.hackingAscensionMult;
+      if (USE_LIMITED_EQUIPMENT) {
+        return Math.ceil(multNeeded / 0.0075);
+      }
+
+      return Math.ceil(multNeeded / 0.1066);
+    } else {
+      let multNeeded = ASCENDED_STRENGTH_MULT - this.info.strengthAscensionMult;
+      if (USE_LIMITED_EQUIPMENT) {
+        return Math.ceil(multNeeded / 0.0185);
+      }
+
+      return Math.ceil(multNeeded / 0.37);
+    }
   }
 
   unownedNormalEquipment(es, {includeAugments = true} = {}) {
     return this.unownedEquipment(es).filter(eq => {
-      if (eq.isHacking) return false;
+      if (eq.isHacking !== HACKING_GANG) return false;
       if (!includeAugments && eq.type === EquipmentSet.TYPES.AUGMENT)
         return false;
       return true;
@@ -200,9 +261,7 @@ export class EquipmentSet extends NSObject {
   }
 
   ascendedEquipment() {
-    return _.toArray(EquipmentSet.ASCENDED_AUGMENTS).map(name =>
-      this.get(name)
-    );
+    return this.sorted().filter(eq => eq.isHacking === HACKING_GANG);
   }
 
   infos() {
@@ -223,21 +282,32 @@ export class EquipmentSet extends NSObject {
   }
 
   normalEquipment({includeAugments = true} = {}) {
-    return this.infos().filter(eq => {
-      if (eq.isHacking) return false;
-      if (!includeAugments && eq.type === EquipmentSet.TYPES.AUGMENT)
-        return false;
-      return allowedEquipment(eq);
-    });
+    return this.infos()
+      .filter(eq => {
+        if (!includeAugments && eq.type === EquipmentSet.TYPES.AUGMENT)
+          return false;
+        return true;
+      })
+      .filter(eq => eq.isHacking === HACKING_GANG)
+      .filter(allowedEquipment);
   }
+
+  static availableAugments() {
+    if (HACKING_GANG) return this.HACKING_AUGMENTS;
+    return this.ASCENDED_AUGMENTS;
+  }
+}
+
+function allowedEquipmentSet() {
+  if (HACKING_GANG) return ALLOWED_HACKING_EQUIPMENT;
+  return ALLOWED_EQUIPMENT;
 }
 
 function allowedEquipment(eq) {
   // Disable this for now
-  if (true) return true;
+  if (!USE_LIMITED_EQUIPMENT) return true;
 
-  if (ALLOWED_EQUIPMENT.has(eq.name)) return true;
-  return false;
+  return allowedEquipmentSet().has(eq.name);
 }
 
 EquipmentSet.HACKING_AUGMENTS = new Set([
@@ -246,7 +316,16 @@ EquipmentSet.HACKING_AUGMENTS = new Set([
   "DataJack",
 ]);
 
-EquipmentSet.ASCENDED_AUGMENTS = new Set(["Bionic Arms", "Bionic Spine"]);
+EquipmentSet.ASCENDED_AUGMENTS = new Set([
+  "Bionic Arms",
+  "Bionic Spine",
+  "Bionic Legs",
+  "BrachiBlades",
+  "Nanofiber Weave",
+  "Synthetic Heart",
+  "Synfibril Muscle",
+  "Graphene Bone Lacings",
+]);
 
 EquipmentSet.TYPES = {
   WEAPON: "Weapon",

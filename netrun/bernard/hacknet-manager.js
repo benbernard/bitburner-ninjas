@@ -34,7 +34,16 @@ const UPGRADE_COSTS = {
 
 class ThisScript extends BaseScript {
   async perform() {
-    let suppressUpgrades = this.pullFirstArg() === "true";
+    let suppressUpgrades = false;
+    let firstArg = this.pullFirstArg();
+    this.serverTarget = null;
+    if (firstArg === "true") {
+      suppressUpgrades = true;
+      firstArg = this.pullFirstArg();
+    }
+
+    this.serverTarget = firstArg;
+
     this.bank = new BankMessaging(this.ns);
     this.tlog(this.reserveHashes());
     while (true) {
@@ -107,15 +116,25 @@ class ThisScript extends BaseScript {
 
   createMoney() {
     while (this.ns.hacknet.numHashes() > this.reserveHashes()) {
-      // this.ns.hacknet.spendHashes("Increase Maximum Money", "megacorp");
-      // this.ns.hacknet.spendHashes("Reduce Minimum Security", "megacorp");
-      // break;
-      this.ns.hacknet.spendHashes("Sell for Money");
+      if (this.serverTarget) {
+        let result = this.ns.hacknet.spendHashes(
+          "Increase Maximum Money",
+          "phantasy"
+        );
+        this.ns.hacknet.spendHashes("Reduce Minimum Security", "phantasy");
+        if (result) {
+          break;
+        } else {
+          this.ns.hacknet.spendHashes("Sell for Money");
+        }
+      } else {
+        this.ns.hacknet.spendHashes("Sell for Money");
+      }
     }
   }
 
   reserveHashes() {
-    return 0.2 * this.totalCache();
+    return 0.8 * this.totalCache();
   }
 
   totalCache() {

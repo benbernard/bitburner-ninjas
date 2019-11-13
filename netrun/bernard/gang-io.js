@@ -12,6 +12,7 @@ const map = {
   human: TASKS.TRAFFICK,
   terror: TASKS.TERROR,
   terrorism: TASKS.TERROR,
+  money: TASKS.MONEY,
 };
 
 class ThisScript extends TK.Script {

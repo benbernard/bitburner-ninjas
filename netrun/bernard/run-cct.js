@@ -1,7 +1,6 @@
 import {BaseScript, NSObject} from "./baseScript.js";
 import Contract from "./contracts.js";
 import {allServers} from "./traverse.js";
-import {purchasedSet} from "./purchased.js";
 
 class ThisScript extends BaseScript {
   async perform() {
@@ -20,7 +19,7 @@ class ThisScript extends BaseScript {
   }
 
   async runContracts() {
-    let servers = await allServers("home", this.ns, purchasedSet(this.ns));
+    let servers = await allServers("home", this.ns);
 
     for (let server of servers) {
       let files = this.ls(server).filter(name => name.endsWith(".cct"));
@@ -31,28 +30,24 @@ class ThisScript extends BaseScript {
           `Found contract: ${contract.file} on ${server}, Tries: ${contract.triesLeft}`
         );
 
-        this.log(`Type: "${contract.type}"`);
-        this.log(`Description: ${contract.description}`);
-        this.log(`Data: ${JSON.stringify(contract.data)}`);
-
         // Allow text to print
         await this.sleep(100);
 
-        let shouldSolve = false;
-        if (
-          contract.triesLeft === 10 ||
-          contract.triesLeft === 1 ||
-          contract.triesLeft === 5 ||
-          contract.triesLeft === 15
-        ) {
-          // This means we tried once and failed!
-          shouldSolve = true;
-        }
-
-        if (!shouldSolve) {
-          continue;
-        }
-
+        // let shouldSolve = false;
+        // if (
+        //   contract.triesLeft === 10 ||
+        //   contract.triesLeft === 1 ||
+        //   contract.triesLeft === 5 ||
+        //   contract.triesLeft === 15
+        // ) {
+        //   // This means we tried once and failed!
+        //   shouldSolve = true;
+        // }
+        //
+        // if (!shouldSolve) {
+        //   continue;
+        // }
+        //
         if (contract.hasSolver()) {
           let success = await contract.solve(this.submit);
           if (!success) {

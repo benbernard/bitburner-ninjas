@@ -31,7 +31,12 @@ class ThisScript extends BaseScript {
         }
       }
 
-      if (allDone) break;
+      if (allDone) {
+        for (let i = 0; i < this.ns.sleeve.getNumSleeves(); i++) {
+          this.ns.sleeve.setToCommitCrime(i, "shoplift");
+        }
+        break;
+      }
       await this.sleep(5000);
     }
   }

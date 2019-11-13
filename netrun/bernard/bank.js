@@ -229,7 +229,7 @@ export class BankScript extends BaseScript {
     let amount = req.data.amount;
 
     if (wallet.amount + amount > this.actualMoney()) {
-      this.messaging.sendResponse(req, {success: false});
+      return this.messaging.sendResponse(req, {success: false});
     }
 
     wallet.amount += amount;
