@@ -32,13 +32,13 @@ const ALLOWED_HACKING_EQUIPMENT = new Set(["NUKE Rootkit"]);
 
 export const HACKING_GANG = true;
 // const ASCENDED_HACKING_MULT = 40;
-const ASCENDED_HACKING_MULT = 300;
-const ASCENDED_HACKING = 25000;
-const GREATLY_ASCENDED_HACKING_MULT = 120;
+const ASCENDED_HACKING_MULT = 100;
+const ASCENDED_HACKING = 15000;
+const GREATLY_ASCENDED_HACKING_MULT = 300;
 
-const GREATLY_ASCENDED_STRENGTH_MULT = 40;
-const ASCENDED_STR = 100000;
-const ASCENDED_STRENGTH_MULT = 70;
+const GREATLY_ASCENDED_STRENGTH_MULT = 100000;
+const ASCENDED_STR = 1000000;
+const ASCENDED_STRENGTH_MULT = 100000;
 // const ASCENDED_STR = 4000;
 // const ASCENDED_STRENGTH_MULT = 10;
 // const ASCENDED_STRENGTH_MULT = 20;
@@ -70,7 +70,7 @@ export class Gang extends GangNSObject {
   }
 
   recruit() {
-    let name = `Member-${this.uuid()}`;
+    let name = `${this.uuid()}`;
     let result = this.gang.recruitMember(name);
     if (!result) throw new Error(`Could not recruit ${name}`);
 
@@ -95,7 +95,7 @@ export class Member extends GangNSObject {
       if (this.fullyAscended()) {
         return this.info.hacking >= 700;
       } else {
-        return this.info.hacking >= 120;
+        return this.info.hacking >= 50;
       }
     } else if (this.fullyAscended()) {
       return this.info.defense >= 700 && this.info.strength >= 700;
@@ -138,16 +138,12 @@ export class Member extends GangNSObject {
 
     let ownedEquipment = this.ownedEquipment();
 
+    let filterFn = this.fullyAscended() ? _.constant(true) : allowedEquipment;
+
     return es
       .sorted()
       .filter(eq => !ownedEquipment.has(eq.name))
-      .filter(eq => {
-        if (this.fullyAscended()) {
-          return true;
-        } else {
-          return allowedEquipment(eq);
-        }
-      });
+      .filter(filterFn);
   }
 
   ownedEquipment() {
@@ -193,16 +189,20 @@ export class Member extends GangNSObject {
     return es.ascendedEquipment().filter(eq => !ownedEquipment.has(eq.name));
   }
 
-  ascensionsNeeded() {
+  ascensionsNeeded(overrideMult = false) {
     if (HACKING_GANG) {
-      let multNeeded = ASCENDED_HACKING_MULT - this.info.hackingAscensionMult;
+      let multNeeded =
+        ASCENDED_HACKING_MULT -
+        (overrideMult ? 1 : this.info.hackingAscensionMult);
       if (USE_LIMITED_EQUIPMENT) {
         return Math.ceil(multNeeded / 0.0075);
       }
 
       return Math.ceil(multNeeded / 0.1066);
     } else {
-      let multNeeded = ASCENDED_STRENGTH_MULT - this.info.strengthAscensionMult;
+      let multNeeded =
+        ASCENDED_STRENGTH_MULT -
+        (overrideMult ? 1 : this.info.strengthAscensionMult);
       if (USE_LIMITED_EQUIPMENT) {
         return Math.ceil(multNeeded / 0.0185);
       }

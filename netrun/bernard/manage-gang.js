@@ -2,10 +2,17 @@ import * as TK from "./tk.js";
 import {EquipmentSet, Gang, TASKS, HACKING_GANG} from "./gangs.js";
 import {BankMessaging} from "./messaging.js";
 
-let EXCLUDED_NAMES = ["Member-947jeasgkoprjai5hjhhz8"];
+let EXCLUDED_NAMES = [
+  "Member-0u548zz9e4cnnna3fhwzx78",
+  "Member-7fyh015rsd7wcneapwwl2",
+  "Member-t9mbib4wpl7e2lbruzzk5",
+];
+const FOCUSED_ASCEND = false;
 
 class ThisScript extends TK.Script {
   async perform() {
+    this.setTraining = new Set();
+    this.setTasking = new Set();
     this.disableLogging("sleep");
     this.gang = new Gang(this.ns);
     this.bank = new BankMessaging(this.ns);
@@ -25,16 +32,27 @@ class ThisScript extends TK.Script {
   async setTasks() {
     for (let member of this.gang.members()) {
       if (member.trained()) {
-        if (member.task === this.trainTask()) {
+        if (
+          member.task === this.trainTask() &&
+          !this.setTasking.has(member.name)
+        ) {
           member.setTask(
             member.fullyAscended() ? this.terrorTask() : this.smallRespectTask()
           );
           this.tlog(`Finished Training Gang Member ${member.name}`);
+          this.setTasking.add(member.name);
         }
       } else if (member.task !== this.trainTask()) {
-        member.setTask(this.trainTask());
-        this.tlog(`Setting ${member.name} to training`);
+        this.setToTraining(member);
       }
+    }
+  }
+
+  setToTraining(member) {
+    if (!this.setTraining.has(member.name)) {
+      this.tlog(`Setting ${member.name} to training`);
+      this.setTraining.add(member.name);
+      member.setTask(this.trainTask());
     }
   }
 
@@ -78,16 +96,24 @@ class ThisScript extends TK.Script {
       .reduce((sum, e) => sum + e.cost, 0);
 
     this.log(`Ascension cost: ${this.cFormat(ascensionCost)}`);
-
-    if (ascensionCost > amount) return;
-
     let members = this.gang.members();
+
+    this.log(
+      `Cost for full ascension: ${this.cFormat(
+        ascensionCost * members[0].ascensionsNeeded(true)
+      )}`
+    );
+
+    if (ascensionCost > amount && !FOCUSED_ASCEND) return;
+
     let fullAscensionCostTold = false;
+
+    if (FOCUSED_ASCEND) members = [members[2]];
 
     for (let member of members) {
       if (!this.fullyOwnsEquipment(member)) continue;
       if (EXCLUDED_NAMES.indexOf(member.name) !== -1) continue;
-      if (member.fullyAscended()) continue;
+      if (member.fullyAscended() && !FOCUSED_ASCEND) continue;
 
       let ascensionsNeeded = member.ascensionsNeeded();
       if (!fullAscensionCostTold) {
@@ -99,11 +125,12 @@ class ThisScript extends TK.Script {
         fullAscensionCostTold = true;
       }
 
-      if (ascensionsNeeded * ascensionCost >= amount) continue;
+      if (!FOCUSED_ASCEND && ascensionsNeeded * ascensionCost >= amount)
+        continue;
 
-      this.tlog(`Ascending ${member.name}`);
+      let count = 0;
       for (let i = 0; i < ascensionsNeeded; i++) {
-        if (i % 800 === 0) {
+        if (i > 0 && i % 80000 === 0) {
           this.tlog(`Withdrawing money for ${member.name}`);
           await this.bank.withdraw("gang", wallet.amount - amount);
           await this.sleep(100);
@@ -113,15 +140,24 @@ class ThisScript extends TK.Script {
         }
 
         if (ascensionCost < amount) {
+          if (i === 0) this.tlog(`Ascending ${member.name}`);
+          count++;
           member.ascend();
           let cost = await this.buyEquipmentForMember(member, amount);
           amount -= cost;
         } else {
           break;
         }
+
+        if (i > ascensionsNeeded - 1) {
+          ascensionsNeeded += member.ascensionsNeeded();
+        }
       }
 
-      member.setTask(this.trainTask());
+      if (count > 0) {
+        this.tlog(`Ascended ${member.name} ${count} times`);
+        member.setTask(this.trainTask());
+      }
       break;
     }
 

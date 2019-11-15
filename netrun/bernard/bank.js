@@ -192,7 +192,7 @@ export class BankScript extends BaseScript {
 
     let success = false;
     let money = this.actualMoney();
-    if (amountSum < money) {
+    if (amountSum < money || setBalancedAmounts) {
       success = true;
 
       for (let {name, amount, portion = null} of req.data.sets) {
@@ -347,6 +347,13 @@ export class BankScript extends BaseScript {
     this.state.hackingLevel = currentHackingLevel;
 
     let currentMoney = this.actualMoney();
+
+    if (currentMoney < 0) {
+      this.wallets.forEach(w => (w.amount = 0));
+      this.state.allocatedMoney = 0;
+      this.saveState();
+      return;
+    }
 
     // Allocate diff
     let diff = currentMoney - this.state.allocatedMoney;

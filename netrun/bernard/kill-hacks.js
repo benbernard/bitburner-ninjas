@@ -2,6 +2,7 @@ import * as TK from "./tk.js";
 import {json} from "./utils.js";
 
 const HACKING_SCRIPTS = new Set([
+  "max-exp.js",
   "hurricane.js",
   "clown-car.js",
   "hydra-hack.js",

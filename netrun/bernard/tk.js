@@ -1,6 +1,6 @@
 import {NSObject, BaseScript} from "./baseScript.js";
 import traverse from "./traverse.js";
-import {_, copy} from "./utils.js";
+import {_, copy, round2} from "./utils.js";
 
 const DYING_FILE = "dying.txt";
 
@@ -294,7 +294,7 @@ export class Server extends NSObject {
       `Money: ${this.cFormat(this.money())} / ${this.cFormat(this.maxMoney())}`,
       `H: ${this.hackingLevel()}`,
       this.hasRoot() ? "Rooted" : "No Root",
-      `S: ${Math.ceil(this.security())} / ${this.minSecurity()}`,
+      `S: ${round2(this.security())} / ${round2(this.minSecurity())}`,
       `R: ${this.rFormat(this.availableRam())} / ${this.rFormat(this.ram())}`,
     ];
 

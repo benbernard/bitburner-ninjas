@@ -32,8 +32,13 @@ class ThisScript extends BaseScript {
       }
 
       if (allDone) {
-        for (let i = 0; i < this.ns.sleeve.getNumSleeves(); i++) {
-          this.ns.sleeve.setToCommitCrime(i, "shoplift");
+        if (mode === "train") {
+          for (let i = 0; i < this.ns.sleeve.getNumSleeves(); i++) {
+            this.ns.sleeve.setToCommitCrime(
+              i,
+              canonicalSleeveCrime("Homicide")
+            );
+          }
         }
         break;
       }

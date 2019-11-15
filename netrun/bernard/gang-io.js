@@ -13,6 +13,7 @@ const map = {
   terror: TASKS.TERROR,
   terrorism: TASKS.TERROR,
   money: TASKS.MONEY,
+  cyber: TASKS.CYBER_TERROR,
 };
 
 class ThisScript extends TK.Script {
