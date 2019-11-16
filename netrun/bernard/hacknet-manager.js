@@ -129,6 +129,7 @@ class ThisScript extends BaseScript {
         }
       } else {
         this.ns.hacknet.spendHashes("Sell for Money");
+        // this.ns.hacknet.spendHashes("Improve Gym Training");
       }
     }
   }

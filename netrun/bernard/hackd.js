@@ -81,6 +81,11 @@ class ThisScript extends BaseScript {
     let serverName = this.pullFirstArg();
 
     this.setup(threads, queueUUID, serverName);
+    if (!this.queue) {
+      this.tlog(`No Queue found for hackd.js!`);
+      return;
+    }
+
     this.queue.registerWorker(this);
     await this.eventLoop();
   }
