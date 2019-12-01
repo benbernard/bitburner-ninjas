@@ -8,7 +8,7 @@ class ThisScript extends BaseScript {
     let mode = this.pullFirstArg() || "train";
     let target = this.pullFirstArg();
     if (mode === "train") {
-      target = target || 20;
+      target = target || 100;
     } else if (mode === "crime") {
       target = canonicalSleeveCrime(target || "shoplift");
     }

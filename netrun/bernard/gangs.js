@@ -36,9 +36,9 @@ const ASCENDED_HACKING_MULT = 1800;
 const ASCENDED_HACKING = 30000;
 const GREATLY_ASCENDED_HACKING_MULT = 900;
 
-const GREATLY_ASCENDED_STRENGTH_MULT = 100000;
-const ASCENDED_STR = 1000000;
-const ASCENDED_STRENGTH_MULT = 40;
+const GREATLY_ASCENDED_STRENGTH_MULT = 120;
+const ASCENDED_STR = 1500;
+const ASCENDED_STRENGTH_MULT = 2000;
 // const ASCENDED_STR = 4000;
 // const ASCENDED_STRENGTH_MULT = 10;
 // const ASCENDED_STRENGTH_MULT = 20;
@@ -164,6 +164,14 @@ export class Member extends GangNSObject {
         this.info.strengthAscensionMult >= ASCENDED_STRENGTH_MULT ||
         this.info.strength >= ASCENDED_STR
       );
+    }
+  }
+
+  ascendedMult() {
+    if (HACKING_GANG) {
+      return this.info.hackingAscensionMult;
+    } else {
+      return this.info.strengthAscensionMult;
     }
   }
 

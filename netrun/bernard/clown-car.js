@@ -145,7 +145,7 @@ class ThisScript extends TK.Script {
     let servers = await this.serversToAttack();
 
     servers = servers.filter(s => this.readyToAttack(s));
-    if (servers.length === 0) return;
+    if (servers.length === 0 && !this.overrideTarget) return;
     let newTarget = servers[0];
     if (this.overrideTarget != null) {
       newTarget = this.overrideTarget;
@@ -260,7 +260,7 @@ class ThisScript extends TK.Script {
   createAttacks(now) {
     if (!this.target) return;
     if (this.threadManager.availableThreads() <= 10) return;
-    if (!this.target.hasLowSecurity()) return;
+    if (!this.target.hasLowSecurity() && !this.overrideTarget) return;
 
     let attackThreads = Math.ceil(this.queue.maxThreads / 2000);
     let weakenThreads = Math.ceil(attackThreads / 3);

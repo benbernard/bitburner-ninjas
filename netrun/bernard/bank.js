@@ -427,9 +427,9 @@ export class BankScript extends BaseScript {
     };
 
     this.addWallet({name: "gang", portion: 0});
-    this.addWallet({name: "servers", portion: 0, priority: 4});
+    this.addWallet({name: "servers", portion: 0.7, priority: 4});
     this.addWallet({name: "stocks", portion: 0});
-    this.addWallet({name: "hacknet", portion: 0.9, priority: 4});
+    this.addWallet({name: "hacknet", portion: 0.3, priority: 4});
     this.saveState();
   }
 

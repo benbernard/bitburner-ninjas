@@ -22,6 +22,7 @@ class ThisScript extends TK.Script {
         this.exit(`Ending`);
         return;
       }
+      args.push("true");
     }
 
     this.home.exec(BREAK_IT_SCRIPT, 1, ...args);

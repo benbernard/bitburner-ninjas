@@ -119,9 +119,12 @@ class ThisScript extends BaseScript {
       if (this.serverTarget) {
         let result = this.ns.hacknet.spendHashes(
           "Increase Maximum Money",
-          "phantasy"
+          this.serverTarget
         );
-        this.ns.hacknet.spendHashes("Reduce Minimum Security", "phantasy");
+        this.ns.hacknet.spendHashes(
+          "Reduce Minimum Security",
+          this.serverTarget
+        );
         if (result) {
           break;
         } else {
@@ -130,12 +133,13 @@ class ThisScript extends BaseScript {
       } else {
         this.ns.hacknet.spendHashes("Sell for Money");
         // this.ns.hacknet.spendHashes("Improve Gym Training");
+        break;
       }
     }
   }
 
   reserveHashes() {
-    return 0.8 * this.totalCache();
+    return 0.1 * this.totalCache();
   }
 
   totalCache() {

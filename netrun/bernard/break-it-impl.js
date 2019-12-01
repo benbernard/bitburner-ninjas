@@ -91,14 +91,16 @@ class ThisScript extends TK.Script {
   async buyAugs(faction) {
     let augs = this.augments(faction);
     while (augs.length <= 1) {
-      this.tlog(`Waiting for more reputation for augs`);
+      this.tlog(`Waiting for more reputation for augs, found ${augs.length}`);
       await this.sleep(10000);
       augs = this.augments(faction);
     }
 
     let buyableAugs = this.buyableAugs(augs);
     while (buyableAugs.length <= 1) {
-      this.tlog(`Waiting for more money for augs`);
+      this.tlog(
+        `Waiting for more money for augs, found: ${buyableAugs.length}`
+      );
       await this.sleep(10000);
       buyableAugs = this.buyableAugs(augs);
     }
@@ -160,7 +162,14 @@ class ThisScript extends TK.Script {
         };
       })
       .filter(a => a.repCost <= reputation)
-      .filter(aug => !owned.has(aug.name));
+      .filter(aug => !owned.has(aug.name))
+      .filter(aug => {
+        let prereqs = this.ns.getAugmentationPrereq(aug.name);
+        for (let p of prereqs) {
+          if (!owned.has(p)) return false;
+        }
+        return true;
+      });
   }
 
   highestFaction() {
